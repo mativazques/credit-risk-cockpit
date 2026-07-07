@@ -1,0 +1,57 @@
+# --- Secrets & credentials (NEVER commit) ---
+.env
+.env.*
+*.env
+credentials.json
+client_secret*.json
+*-key.json
+*_key.json
+service-account*.json
+sa-*.json
+gcp-*.json
+*.pem
+secrets/
+
+# --- dbt ---
+target/
+dbt_packages/
+logs/
+profiles.yml
+.user.yml
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.python-version
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# --- Data (public datasets are downloaded, not committed) ---
+data/
+*.csv
+*.parquet
+*.xlsx
+*.db
+*.sqlite
+
+# --- Airflow / Astro ---
+airflow.db
+airflow.cfg
+astro/.env
+.astro/
+
+# --- Terraform ---
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+
+# --- OS / IDE ---
+.DS_Store
+.idea/
+.vscode/
+*.swp
