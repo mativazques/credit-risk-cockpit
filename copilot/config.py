@@ -28,6 +28,29 @@ STEP_LIMIT_MESSAGE = (
     "metric or cohort comparison."
 )
 
+# --- Abuse hardening (C3.3) --------------------------------------------------------
+
+# L1 — reject overly long input before spending any tokens.
+MAX_INPUT_CHARS = 500
+
+# L2 — per-IP token bucket + a global daily ceiling kept safely under the AI Studio
+# free-tier quota (1,500/day), so the whole demo can't exhaust it.
+PER_IP_CAPACITY = 5           # burst allowance per visitor
+PER_IP_REFILL_PER_SEC = 0.1   # ~6 questions/minute sustained
+GLOBAL_DAILY_LIMIT = 1000
+
+# L4 — cache identical questions so repeats never re-spend the budget.
+CACHE_CAPACITY = 256
+
+# Canned, zero-token responses.
+OFF_TOPIC_MESSAGE = (
+    "I only answer questions about this demo's credit-risk metrics — vintage curves, "
+    "cohorts, default and loss rates, DTI. Ask me about those."
+)
+RATE_LIMIT_MESSAGE = (
+    "This public demo has hit its request limit for now. Please try again shortly."
+)
+
 
 def get_client(api_key: str | None = None) -> genai.Client:
     """Build an AI Studio Gemini client, failing clearly if no key is configured."""

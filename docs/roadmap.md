@@ -95,10 +95,15 @@ Natural stopping points (each is a legit portfolio artifact on its own):
   back as structured data (`{"error": {...}}`), never raised, so a model can self-correct;
   `TOOL_DECLARATIONS` (the function-calling schema for C3.2) + `dispatch(name, args)`
   routing. 12 unit tests, **no LLM**. **STOP = governed tools.**
-- [ ] **C3.2** Gemini function-calling wiring (AI Studio API key from `.env`) + system
-  prompt + FastAPI endpoint. **STOP = working NL copilot.**
-- [ ] **C3.3** Hardening L1–L4: `max_output_tokens` + input caps, on-topic router
-  (zero-token refusal off-topic), per-IP + global daily rate limit, answer cache.
+- [x] **C3.2** Gemini function-calling wiring (`copilot/agent.py`, manual loop, automatic
+  calling disabled so every call goes through governed `dispatch`) + system prompt +
+  FastAPI `POST /ask`. Own venv `.venv-copilot` (google-genai off the Streamlit
+  protobuf<6 pin). `GEMINI_API_KEY` from `.env`; `make api`. 9 unit tests, LLM faked.
+  **STOP = working NL copilot** *(live smoke test pending the API key).*
+- [x] **C3.3** Hardening L1–L4: `max_output_tokens=512` + input cap (`copilot/config.py`),
+  on-topic router (`copilot/router.py`, zero-token refusal), per-IP token bucket + global
+  daily cap (`copilot/ratelimit.py`), answer cache (`copilot/cache.py`), wired into
+  `/ask` so only novel on-topic questions spend budget. 25 unit tests.
   **STOP = abuse-safe copilot.**
 - [ ] **C3.4** Streamlit chat panel integrated into the cockpit app. **STOP = full app
   locally.**
