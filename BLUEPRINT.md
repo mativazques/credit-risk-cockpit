@@ -170,7 +170,8 @@ Deferred to a later phase; buildable via a synthetic state-machine and clearly l
 "simulated" if pursued.
 
 ### Agentic copilot
-- **FastAPI** service, **Gemini via Vertex AI** (per stack default; Claude deferred).
+- **FastAPI** service, **`gemini-3.5-flash` via Vertex AI** (per stack default; Claude
+  deferred). Model choice + spend bounding covered in Cost & abuse hardening.
 - **MCP server** exposing governed tools: `list_metrics`, `query_metric(cohort, window)`,
   `compare_cohorts(a, b, metric)`. Agent decomposes the question → calls tools →
   narrates. No free-form SQL against raw tables.
@@ -187,8 +188,12 @@ Goal: absolute **$0/mo** for the portfolio demo on GCP free tier.
   dataset, no freshness loss; avoids repeated on-demand scan charges.
 - **Cloud Run:** `min-instances=0` (scale-to-zero); cold start ~4 s is acceptable for a
   portfolio demo.
-- **Vertex AI:** model pinned to `gemini-1.5-flash`; tool-call payloads kept narrow
-  (metric names + filters only, not raw table dumps).
+- **Vertex AI:** model pinned to `gemini-3.5-flash` (GA, no announced retirement; the
+  `2.0-flash` family was shut down 2026-06-01 and `2.5-flash` retires 2026-10-16). Pricing
+  ~$1.50/M input · $9.00/M output · $0.15/M cached input. Tool-call payloads kept narrow
+  (metric names + filters only, not raw table dumps); `max_output_tokens` capped and the
+  fixed system prompt + metric catalog served via context caching. See Cost & abuse
+  hardening for how public LLM spend is bounded against abuse.
 - **GCS:** single bucket, ~1.4 GB raw CSV within the 5 GB free-tier allowance.
 - **Artifact Registry:** lean container image (<0.5 GB) stays within the free tier.
 - **Raw CSV never committed** to the repo (requires a free Kaggle account to download).
@@ -205,6 +210,37 @@ Goal: absolute **$0/mo** for the portfolio demo on GCP free tier.
   destroys the Cloud Run service, GCS bucket, and BigQuery dataset must exist before
   Phase 4 is marked done. `trim` keeps the thin serving layer alive; `teardown` nukes
   everything.
+
+### Cost & abuse hardening (public LLM demo)
+A public copilot URL is an anonymous, per-message token-spend endpoint — an abuse vector.
+Two facts drive the design: (1) **GCP budgets do not cap spend, they only alert** — the
+only hard cap is a kill-switch that disables billing; (2) **`gemini-3.5-flash` uses
+Dynamic Shared Quota**, so the cap cannot come from a Vertex RPM quota knob — it must come
+from the app layer + the kill-switch. Strategy: **bound `cost-per-call × call-count`, then
+a billing kill-switch as backstop** → spend is mathematically bounded.
+
+**Worst-case math (reassurance):** per call bounded to input ≤1k tokens (~$0.0015) +
+`max_output_tokens=512` (~$0.0046) ≈ **~$0.006/call**. A global daily cap of 500 calls →
+**~$3/day** worst case; a billing kill-switch at a low budget makes bankruptcy impossible.
+
+Defense in depth (most effective first):
+- **L0 — Product decision.** Public visitors see a **recorded GIF + pre-computed example
+  Q&A** (zero live tokens); the live copilot sits behind an access gate (password/code)
+  used in interviews. Biggest lever, $0. This is the default.
+- **L1 — Bound per-call cost.** `gemini-3.5-flash`, `max_output_tokens=512`, reject input
+  over N chars *before* calling Gemini, context-cache the system prompt + metric catalog.
+- **L2 — Bound call volume.** Per-IP + per-session rate limit (token bucket in FastAPI);
+  a global daily cap (counter) that returns a canned "demo limit reached" without hitting
+  Gemini; Cloud Run `max-instances` + `concurrency` cap parallelism.
+- **L3 — On-topic router.** A cheap deterministic pre-filter (allowed intents/keywords or
+  embedding similarity) runs BEFORE the expensive call; off-topic questions get a canned
+  refusal with **zero Gemini tokens** ("I only answer questions about this demo's
+  credit-risk metrics — vintage, cohorts, default rate…"). Reinforced by the existing
+  tool-constrained design: the model can only call `list_metrics`/`query_metric`/
+  `compare_cohorts`, so off-topic maps to no tool → cheap structured refusal.
+- **L4 — Cache.** Exact/semantic cache of `question → answer` kills repeated-spam cost.
+- **L5 — Backstop (the only hard cap).** Budget → Pub/Sub → Cloud Function that disables
+  billing on the project, plus budget alerts at 50/90/100%. Delivered via Terraform.
 
 ## Phased plan
 - **Phase 0 — Scaffold.** Repo, `.gitignore` (secrets out), ingestion script CSV→GCS→BQ,
@@ -233,12 +269,17 @@ Goal: absolute **$0/mo** for the portfolio demo on GCP free tier.
   vintage/cohort marts + tests + docs. Dashboard with vintage curves + cohort heatmap.
   *This alone is a strong analytics-eng portfolio piece.*
 - **Phase 2 — Semantic layer.** Metrics defined once; BI and agent read the same defs.
-- **Phase 3 — Agentic copilot.** FastAPI + Gemini + MCP tools over the semantic layer;
-  NL risk Q&A with narrative diagnosis. *This is the differentiator.*
+- **Phase 3 — Agentic copilot.** FastAPI + `gemini-3.5-flash` (Vertex AI) + MCP tools over
+  the semantic layer; NL risk Q&A with narrative diagnosis. *This is the differentiator.*
+  Includes the **app-layer cost/abuse hardening** (L1–L4 in Cost & abuse hardening):
+  on-topic router, input caps + `max_output_tokens`, per-IP + global rate limit, cache.
 - **Phase 4 — Polish & deploy.** Cloud Run deploy (`min-instances=0`), Terraform (main.tf
   covering GCS bucket + BigQuery dataset + Cloud Run service + Artifact Registry repo +
-  IAM bindings), `make hydrate`/`trim`/`teardown` targets (trim keeps marts, teardown
-  destroys all via `terraform destroy`), README with screenshots/GIF + a short write-up.
+  IAM bindings, **plus the billing kill-switch: budget + Pub/Sub + billing-disable Cloud
+  Function, and Cloud Run `max-instances`** — L5 of the hardening), the **product gate**
+  (public = recorded GIF + pre-computed Q&A; live copilot behind an access code — L0),
+  `make hydrate`/`trim`/`teardown` targets (trim keeps marts, teardown destroys all via
+  `terraform destroy`), README with screenshots/GIF + a short write-up.
 
 ## Interview story (defensibility)
 Every layer maps to something Matias owns day-to-day: cohorts, vintage curves, credit
