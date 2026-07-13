@@ -129,7 +129,7 @@ provisions) are unaudited — used to motivate the mechanism, not to size the be
                                            ▼
 Kaggle CSV → GCS (raw) → BigQuery (raw)
                           → dbt (staging → intermediate → marts + semantic layer)
-                          → Looker Studio / Streamlit  (BI cockpit)
+                          → Streamlit  (BI cockpit + chat)
                           → FastAPI + Gemini (Vertex AI) + MCP  (agentic copilot)
                           → Cloud Run (deploy, min-instances=0)   ·   Terraform (IaC)
 ```
@@ -178,7 +178,7 @@ Deferred to a later phase; buildable via a synthetic state-machine and clearly l
   `mob_0_24`, `mob_0_36`, `mob_0_60`, `lifetime`. Each metric declares which windows are
   valid (e.g. `cumulative_loss_rate` is valid for all; `charge_off_rate` is valid from
   `mob_0_12` onward). Requests for an invalid window return a structured error, not SQL.
-- Front-end: Streamlit (cockpit + chat in one) OR Looker Studio for BI + a chat widget.
+- Front-end: Streamlit (cockpit + chat in one app on Cloud Run).
 
 ### Cost controls
 Goal: absolute **$0/mo** for the portfolio demo on GCP free tier.
