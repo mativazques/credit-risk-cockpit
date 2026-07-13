@@ -10,6 +10,7 @@ wrapper (C3.5).
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Callable
 
 from semantic import (
@@ -23,6 +24,24 @@ from semantic import (
 
 _METRIC_IDS = sorted(METRICS)
 _WINDOW_VALUES = [w.value for w in Window]
+
+
+_COHORT_RE = re.compile(r"^\s*((?:19|20)\d{2})\s*-?\s*[qQ]([1-4])\s*$")
+
+
+def _normalize_cohort(cohort: str | None) -> str | None:
+    """Canonicalize an issue cohort to the mart's 'YYYY-Qn' form.
+
+    The model (or a user) writes '2015Q1', '2015 Q1', or lowercase just as readily as
+    the canonical '2015-Q1'. Anything we can't parse is returned untouched so the
+    semantic layer still reports it as cohort_unknown.
+    """
+    if cohort is None:
+        return None
+    m = _COHORT_RE.match(cohort)
+    if not m:
+        return cohort
+    return f"{m.group(1)}-Q{m.group(2)}"
 
 
 def _error(code: str, message: str) -> dict:
@@ -48,7 +67,7 @@ def query_metric(
     cohort: str | None = None,
 ) -> dict:
     """One governed metric across issue cohorts (or a single cohort) at a window."""
-    return _as_data(_query_metric, metric_id, window, cohort)
+    return _as_data(_query_metric, metric_id, window, _normalize_cohort(cohort))
 
 
 def compare_cohorts(
@@ -58,7 +77,13 @@ def compare_cohorts(
     window: str = Window.LIFETIME.value,
 ) -> dict:
     """One governed metric compared between two issue cohorts at the same window."""
-    return _as_data(_compare_cohorts, cohort_a, cohort_b, metric_id, window)
+    return _as_data(
+        _compare_cohorts,
+        _normalize_cohort(cohort_a),
+        _normalize_cohort(cohort_b),
+        metric_id,
+        window,
+    )
 
 
 # --- function-calling contract handed to the model (C3.2) --------------------------
@@ -93,7 +118,7 @@ TOOL_DECLARATIONS: list[dict] = [
                 },
                 "cohort": {
                     "type": "string",
-                    "description": "Optional issue cohort like '2018Q1'; omit for all cohorts.",
+                    "description": "Optional issue cohort like '2018-Q1'; omit for all cohorts.",
                 },
             },
             "required": ["metric_id"],
@@ -108,8 +133,8 @@ TOOL_DECLARATIONS: list[dict] = [
         "parameters": {
             "type": "object",
             "properties": {
-                "cohort_a": {"type": "string", "description": "First issue cohort, e.g. '2018Q1'."},
-                "cohort_b": {"type": "string", "description": "Second issue cohort, e.g. '2018Q2'."},
+                "cohort_a": {"type": "string", "description": "First issue cohort, e.g. '2018-Q1'."},
+                "cohort_b": {"type": "string", "description": "Second issue cohort, e.g. '2018-Q2'."},
                 "metric_id": {
                     "type": "string",
                     "enum": _METRIC_IDS,

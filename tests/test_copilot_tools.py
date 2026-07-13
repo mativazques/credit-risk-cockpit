@@ -88,3 +88,54 @@ def test_dispatch_bad_arguments_returns_structured_error():
 def test_package_reexports_the_public_tool_surface():
     assert copilot.dispatch is tools.dispatch
     assert copilot.TOOL_DECLARATIONS is tools.TOOL_DECLARATIONS
+
+
+# --- cohort normalization: forgive the format the model naturally writes -----------
+# The marts key cohorts as 'YYYY-Qn' (e.g. '2015-Q1'), but a model (or a user) will just
+# as often write '2015Q1', '2015 Q1', or lowercase. Normalize at the tool boundary so a
+# natural phrasing resolves instead of bouncing off cohort_unknown and burning the
+# tool-call budget on retries.
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("2015Q1", "2015-Q1"),
+        ("2015 Q1", "2015-Q1"),
+        ("2015q1", "2015-Q1"),
+        ("2015-q1", "2015-Q1"),
+        ("2015-Q1", "2015-Q1"),
+        (" 2018Q4 ", "2018-Q4"),
+    ],
+)
+def test_normalize_cohort_canonicalizes_common_formats(raw, expected):
+    assert tools._normalize_cohort(raw) == expected
+
+
+def test_normalize_cohort_passes_through_none_and_unrecognized():
+    assert tools._normalize_cohort(None) is None
+    # Leave anything we can't parse untouched — the semantic layer will report it.
+    assert tools._normalize_cohort("latest") == "latest"
+
+
+def test_query_metric_tool_normalizes_cohort_before_the_semantic_call(monkeypatch):
+    seen = {}
+
+    def _spy(metric_id, window, cohort):
+        seen["cohort"] = cohort
+        return {"results": []}
+
+    monkeypatch.setattr(tools, "_query_metric", _spy)
+    tools.query_metric("default_rate", "lifetime", "2015Q1")
+    assert seen["cohort"] == "2015-Q1"
+
+
+def test_compare_cohorts_tool_normalizes_both_cohorts(monkeypatch):
+    seen = []
+
+    def _spy(cohort_a, cohort_b, metric_id, window):
+        seen.extend([cohort_a, cohort_b])
+        return {"difference": 0}
+
+    monkeypatch.setattr(tools, "_compare_cohorts", _spy)
+    tools.compare_cohorts("2015Q1", "2016 q2", "default_rate", "lifetime")
+    assert seen == ["2015-Q1", "2016-Q2"]

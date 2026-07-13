@@ -17,8 +17,8 @@ from copilot.client import CopilotError, ask
 API_URL = os.environ.get("COPILOT_API_URL", "http://localhost:8000")
 
 _EXAMPLES = [
-    "What was the lifetime default rate for the 2016Q1 cohort?",
-    "Compare the default rate of 2015Q1 vs 2016Q1.",
+    "What was the lifetime default rate for the 2016-Q1 cohort?",
+    "Compare the default rate of 2015-Q1 vs 2016-Q1.",
     "Which metrics can I ask about?",
 ]
 
