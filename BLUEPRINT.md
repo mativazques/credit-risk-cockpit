@@ -30,23 +30,39 @@ queries the same governed metrics, compares cohorts, and narrates the driver."
 - The clean, defensible unit: **1 bp of loss = €100k/yr per €1B of receivables**
   (€1B × 0.0001). So a 4% book loses **~€40M/yr per €1B**.
 - *Illustrative book:* **€2B receivables → ~€80M/yr in credit losses.** That is the pool
-  the cockpit chips at.
+  the cockpit chips at. Scale is illustrative and linear — substitute any book size; the
+  arithmetic is identical.
 - Amplifier (qualitative, not quantified): DORA + governance raise the cost of
   inconsistent, non-auditable metrics. Not credited as € benefit — attributing avoided
   fines to a BI tool is not defensible.
 
 ### Hard benefit — loss avoidance (the core)
-Benefit = influenced book × Δ loss-rate avoided. Explicit multipliers:
-- **Influenced share:** cockpit only sways decisions on actively-managed cohorts / new
-  originations → assume **30%** of €2B = **€600M**.
-- **Δ loss avoided** via earlier cohort/vintage detection — modeled as an assumption,
-  sensitivity-tested:
+Benefit = influenced book × Δ loss-rate avoided.
 
-| Case | Δ loss on influenced book | Annual hard benefit |
+**Influenced share — pilot-then-scale ladder (not a claimed fixed %).**
+The true influenced share depends on deployment breadth; rather than assume a fixed
+percentage of the full €2B book, the model uses a pilot anchor that grows via a rollout
+ladder. The cockpit is first deployed on ONE actively-managed portfolio/product line;
+illustrative pilot size ≈ **€200M receivables** (one product line / a few origination
+vintages under active review).
+
+**Rollout ladder × detection-lift sensitivity (base Δ = 5 bp):**
+
+| Deployment stage | Influenced book | Annual hard benefit (5 bp base) |
 | :--- | :--- | :--- |
-| Conservative | 2 bp | **€120k** |
-| Base | 5 bp | **€300k** |
-| Best | 10 bp | **€600k** |
+| Pilot (1 product line) | **€200M** | **€100k/yr** |
+| Partial rollout (3 product lines) | **€600M** | **€300k/yr** |
+| Full managed book | **€1.2B** | **€600k/yr** |
+
+*(Unit: 1 bp = €100k per €1B receivables. Benefit = influenced book × Δ bp.)*
+
+**Detection-lift sensitivity (second axis — each stage has a low/base/high):**
+
+| Δ loss avoided | Pilot €200M | Partial €600M | Full €1.2B |
+| :--- | :--- | :--- | :--- |
+| Conservative 2 bp | **€40k** | **€120k** | **€240k** |
+| Base 5 bp | **€100k** | **€300k** | **€600k** |
+| Best 10 bp | **€200k** | **€600k** | **€1.2M** |
 
 *Ceiling context only (NOT the claim):* McKinsey attributes 20–40% credit-loss
 reduction to next-gen decisioning *models* — our tool is monitoring, not a model, so we
@@ -59,26 +75,40 @@ provisions) are unaudited — used to motivate the mechanism, not to size the be
 - *Illustrative:* 3 risk analysts × €90k loaded × ~15–25% time redeployed ≈ **€40–70k/yr**.
 
 ### Costs / TCO (year 1)
-- Build (one engineer, a few months) **€60–100k** + run (BigQuery, dbt, Cloud Run, LLM
-  inference) **~€10–20k/yr** + change management. **Year-1 TCO ≈ €80–130k.**
+- **Build:** one mid-senior engineer ~3–4 months → **€70–100k**.
+- **Run** (production estimate for a live book):
+  - BigQuery on-demand: **~€2–4k/yr**
+  - Cloud Run: **~€1–2k/yr**
+  - Vertex AI inference (Gemini Flash, narrow tool-call payloads): **~€5–12k/yr**
+  - Total run: **~€8–18k/yr**
+- **Change management:** ~€5–10k.
+- **Year-1 TCO ≈ €85–130k.**
+- *(This is the production estimate for a live book; the PORTFOLIO DEMO itself runs at
+  ~$0/mo on GCP free tier — see Cost controls.)*
 
 ### ROI & payback
-- **Base case:** €300k hard + €50k soft = €350k vs ~€110k TCO → **payback ≈ 4–5 months**,
-  Year-1 ROI ~2–3×.
-- **Conservative case (hard only, soft zeroed):** €120k vs €110k → **≈ break-even in
-  year 1**, clearly positive from year 2 (run cost only). The case survives its own
-  worst assumptions — that's the point.
+- **Pilot base case (5 bp, €200M):** €100k hard + €50k soft = €150k vs ~€110k TCO →
+  **payback ≈ 9 months**, Year-1 ROI ~1.4×.
+- **Partial rollout base case:** €300k hard + €50k soft = €350k vs ~€110k TCO →
+  **payback ≈ 4–5 months**, Year-1 ROI ~2–3×.
+- **Worst-case pilot (2 bp, €200M, soft zeroed):** €40k hard vs ~€0 run cost for demo
+  (portfolio demo runs at $0/mo) → still positive from year 2 on run cost alone. The
+  case survives its worst assumptions at every scale — that's the point.
 
 ### Key assumptions & risks (own them)
-- Assumptions: book €2B, loss 4%, influenced 30%, Δ 2–10 bp, redeploy 15–25%. **The
-  Δ-bp and adoption are the sensitive levers** — everything else is arithmetic or benchmark.
+- Assumptions: book €2B, loss 4%, pilot €200M, rollout ladder to €1.2B, Δ 2–10 bp,
+  redeploy 15–25%. Influenced share is modeled as a pilot-then-scale ladder, not a
+  claimed fixed %, because the true share depends on deployment breadth. **The Δ-bp
+  and adoption are the sensitive levers** — everything else is arithmetic or benchmark.
 - Risks: *attribution* (did the tool cause the avoided loss, or the analyst?) and
-  *adoption* (risk managers must actually use the copiloto). Mitigation: pilot on one
+  *adoption* (risk managers must actually use the copilot). Mitigation: pilot on one
   portfolio, measure detection-lead-time before/after, risk-adjust benefits TEI-style.
+- Public portfolio — no real book. All numbers illustrative with stated assumptions.
 
 ## What BI does vs what the agent does
 - **BI (standing views):** vintage curves (months-on-book vs cumulative default),
-  cohort heatmaps, roll-rate tables, DTI / grade distributions, portfolio KPIs.
+  cohort heatmaps, DTI / grade distributions, portfolio KPIs. (Roll-rate tables deferred
+  to backlog — see Dimensional model section.)
 - **Agent (ad-hoc "why"):** natural-language questions, cross-cohort comparisons,
   narrative diagnosis, anomaly explanation. Only where NL Q&A genuinely beats clicking.
 - **Non-gratuitous rule:** the agent does **text-to-metric** over the semantic layer
@@ -101,7 +131,7 @@ Kaggle CSV → GCS (raw) → BigQuery (raw)
                           → dbt (staging → intermediate → marts + semantic layer)
                           → Looker Studio / Streamlit  (BI cockpit)
                           → FastAPI + Gemini (Vertex AI) + MCP  (agentic copilot)
-                          → Cloud Run (deploy)   ·   Terraform (IaC, later)
+                          → Cloud Run (deploy, min-instances=0)   ·   Terraform (IaC)
 ```
 
 ### Orchestration (Airflow + Cosmos)
@@ -112,37 +142,73 @@ Kaggle CSV → GCS (raw) → BigQuery (raw)
 - **Integrate dbt with `astronomer-cosmos`**, not a black-box `BashOperator dbt run`.
   Cosmos renders **each dbt model as its own Airflow task** with real dependencies →
   the DAG mirrors the lineage; this is the modern pattern NL/DE data teams expect.
-- Honest framing: on a static Kaggle dataset orchestration is somewhat "gratuitous"
-  (runs once) — included as a *skill demonstration*, reusing existing Airflow chops.
+- Honest framing: on a static Kaggle dataset the batch runs once, but the DAG is written
+  for incremental ingestion — included as a *production-readiness demonstration*, reusing
+  existing Airflow experience.
 
 ### Dimensional model (dbt on BigQuery)
 - **Facts:** `fct_loan` (grain: loan), `fct_loan_month` (grain: loan × month-on-book,
   for vintage curves).
-- **Dims:** `dim_borrower`, `dim_date`, `dim_grade` (product/grade/term).
-- **Marts:** `mart_vintage_curves`, `mart_cohort_default`, `mart_roll_rates`.
+- **Dims:** `dim_borrower`, `dim_date`, `dim_loan_product` (grade, sub_grade,
+  term_months, int_rate_band).
+- **Marts:** `mart_vintage_curves`, `mart_cohort_default`.
 - **Semantic layer:** metrics — `default_rate`, `cumulative_loss_rate`, `cohort_size`,
   `avg_dti`, `charge_off_rate` — defined once, consumed by BI and agent.
 - dbt tests + docs on every model (shows analytics-eng rigor).
+
+**Grain construction for `fct_loan_month`:** LendingClub is a loan-level SNAPSHOT, not
+a monthly payment history. `fct_loan_month` is GENERATED via a dbt date-spine —
+cross-join each loan against MOB integers 1..term anchored on `issue_d`. The
+`default_flag` at each MOB is derived from `loan_status` + `last_pymnt_d` (charge-off
+month approximated as `last_pymnt_d` for defaulted loans, ±1–3 months noise). 2017–2018
+originations are right-censored at the snapshot date and must be labeled as such. This
+is a standard, interview-defensible approach for public snapshot data.
+
+**Backlog / deferred — roll rates:** `mart_roll_rates` requires per-month loan status
+transitions, which the LendingClub snapshot does not carry (only final `loan_status`).
+Deferred to a later phase; buildable via a synthetic state-machine and clearly labeled
+"simulated" if pursued.
 
 ### Agentic copilot
 - **FastAPI** service, **Gemini via Vertex AI** (per stack default; Claude deferred).
 - **MCP server** exposing governed tools: `list_metrics`, `query_metric(cohort, window)`,
   `compare_cohorts(a, b, metric)`. Agent decomposes the question → calls tools →
   narrates. No free-form SQL against raw tables.
+- **`window` enum contract for `query_metric`:** allowed values `mob_0_6`, `mob_0_12`,
+  `mob_0_24`, `mob_0_36`, `mob_0_60`, `lifetime`. Each metric declares which windows are
+  valid (e.g. `cumulative_loss_rate` is valid for all; `charge_off_rate` is valid from
+  `mob_0_12` onward). Requests for an invalid window return a structured error, not SQL.
 - Front-end: Streamlit (cockpit + chat in one) OR Looker Studio for BI + a chat widget.
+
+### Cost controls
+Goal: absolute **$0/mo** for the portfolio demo on GCP free tier.
+
+- **BigQuery:** all Streamlit queries wrapped in `@st.cache_data(ttl=3600)` — static
+  dataset, no freshness loss; avoids repeated on-demand scan charges.
+- **Cloud Run:** `min-instances=0` (scale-to-zero); cold start ~4 s is acceptable for a
+  portfolio demo.
+- **Vertex AI:** model pinned to `gemini-1.5-flash`; tool-call payloads kept narrow
+  (metric names + filters only, not raw table dumps).
+- **GCS:** single bucket, ~1.4 GB raw CSV within the 5 GB free-tier allowance.
+- **Artifact Registry:** lean container image (<0.5 GB) stays within the free tier.
+- **Raw CSV never committed** to the repo (requires a free Kaggle account to download).
+- **Tear-down requirement:** a `scripts/teardown.sh` (or `make teardown`) that destroys
+  the Cloud Run service, GCS bucket, and BigQuery dataset must exist before Phase 4 is
+  marked done. Terraform's `terraform destroy` doubles as the tear-down path.
 
 ## Phased plan
 - **Phase 0 — Scaffold.** Repo, `.gitignore` (secrets out), ingestion script CSV→GCS→BQ,
   initial README. Git identity = matirvazques@gmail.com.
-- **Phase 1 — BI core (standalone win).** dbt: staging + vintage/cohort marts + tests +
-  docs. Dashboard with vintage curves + cohort heatmap. Simple Airflow DAG
-  (`ingest → dbt run → dbt test`, BashOperator first). *This alone is a strong
-  analytics-eng portfolio piece.*
+- **Phase 1 — BI core (standalone win).** Airflow with astronomer-cosmos set up from the
+  start (each dbt model as its own Airflow task, real lineage in the DAG). dbt: staging +
+  vintage/cohort marts + tests + docs. Dashboard with vintage curves + cohort heatmap.
+  *This alone is a strong analytics-eng portfolio piece.*
 - **Phase 2 — Semantic layer.** Metrics defined once; BI and agent read the same defs.
 - **Phase 3 — Agentic copilot.** FastAPI + Gemini + MCP tools over the semantic layer;
   NL risk Q&A with narrative diagnosis. *This is the differentiator.*
-- **Phase 4 — Polish & deploy.** Upgrade the Airflow DAG to Cosmos (model-level tasks),
-  Cloud Run deploy, optional Terraform, README with screenshots/GIF + a short write-up.
+- **Phase 4 — Polish & deploy.** Cloud Run deploy (`min-instances=0`), Terraform (main.tf
+  covering GCS bucket + BigQuery dataset + Cloud Run service + Artifact Registry repo +
+  IAM bindings), `scripts/teardown.sh`, README with screenshots/GIF + a short write-up.
 
 ## Interview story (defensibility)
 Every layer maps to something Matias owns day-to-day: cohorts, vintage curves, credit
@@ -155,6 +221,16 @@ cohort move?" questions a risk/planning team asks. Public data, honestly labeled
 2. **Scope of v1: LendingClub-only** — vintage/cohort analytics first. Home Credit
    affordability is a later extension, NOT in v1.
 3. **Public repo name: `credit-risk-cockpit`.**
+4. **`mart_roll_rates` deferred to backlog** — the LendingClub snapshot carries only
+   final `loan_status`, not per-month transitions. Roll rates are buildable via a
+   synthetic state-machine (labeled "simulated") in a later phase.
+5. **Terraform IS included in v1** — `main.tf` covering 4–5 resources (GCS bucket,
+   BigQuery dataset, Cloud Run service, Artifact Registry repo, IAM bindings), delivered
+   in Phase 4. Not optional.
+6. **Infrastructure goal: absolute $0/mo for the portfolio demo** — achieved via
+   scale-to-zero Cloud Run, BigQuery caching, GCS/Artifact Registry within free tiers,
+   and Gemini Flash with narrow payloads. See Cost controls.
+7. **License: MIT.**
 
 ## Status
 - Design/blueprint: **done.**
