@@ -199,6 +199,25 @@ Goal: absolute **$0/mo** for the portfolio demo on GCP free tier.
 ## Phased plan
 - **Phase 0 — Scaffold.** Repo, `.gitignore` (secrets out), ingestion script CSV→GCS→BQ,
   initial README. Git identity = matirvazques@gmail.com.
+
+  **Kickoff checklist (start the next coding session here):**
+  1. **Data source — LendingClub (Kaggle, CC0).** Dataset `wordsforthewise/lending-club`,
+     file `accepted_2007_to_2018Q4.csv` (~2.26M loans, ~1.4 GB). Not committed — pulled at
+     runtime. As of 2026-07-13 the file is **NOT yet downloaded**; the Kaggle CLI and creds
+     are **not yet installed** on this machine.
+  2. **Kaggle CLI setup.** `pip install kaggle`. Get an API token at
+     kaggle.com → Account → *Create New Token* (downloads `kaggle.json`). Provide it as
+     `KAGGLE_USERNAME` / `KAGGLE_KEY` in a git-ignored `.env` (do NOT commit `kaggle.json`).
+     Verify with `kaggle datasets list`.
+  3. **GCP project.** Confirm the active project on `matirvazques@gmail.com`
+     (`gcloud config get-value project`). Enable BigQuery + Cloud Storage APIs. One GCS
+     bucket (raw) + one BigQuery dataset (raw). Stay in free tier — see Cost controls.
+  4. **Ingestion script** `scripts/ingest.py`: Kaggle download → upload CSV to GCS →
+     load into BigQuery `raw` dataset (schema autodetect or explicit).
+  5. **Folder scaffold:** `dbt/` (project + profiles via env, not committed),
+     `airflow/` (Astro project, Cosmos), `scripts/`, `app/` (Streamlit later), `.env.example`.
+  6. **Secrets hygiene:** confirm `.env`, `kaggle.json`, `*.json` service-account keys,
+     and `dbt profiles` are all in `.gitignore` BEFORE the first data-related commit.
 - **Phase 1 — BI core (standalone win).** Airflow with astronomer-cosmos set up from the
   start (each dbt model as its own Airflow task, real lineage in the DAG). dbt: staging +
   vintage/cohort marts + tests + docs. Dashboard with vintage curves + cohort heatmap.

@@ -11,6 +11,8 @@ sa-*.json
 gcp-*.json
 *.pem
 secrets/
+kaggle.json
+.kaggle/
 
 # --- dbt ---
 target/
