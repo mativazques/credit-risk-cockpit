@@ -8,10 +8,18 @@ Reads only the small aggregated marts, never the raw ~2.3M-loan table.
 """
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import plotly.express as px
 import streamlit as st
 
-from queries import load_cohort_default, load_vintage_curves
+# Repo root on the path so BI reads the governed metric definitions (C2.1) — the
+# single source of truth shared with the copilot — instead of redefining them here.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from queries import load_cohort_default, load_vintage_curves  # noqa: E402
+from semantic import list_metrics  # noqa: E402
 
 st.set_page_config(page_title="Credit-Risk Cockpit", page_icon=None, layout="wide")
 
@@ -20,6 +28,25 @@ st.caption(
     "Vintage & cohort analytics over the public LendingClub accepted-loans book "
     "(2007–2018, snapshot 2019-03). Public data — see the repo's data footer."
 )
+
+with st.expander("Governed metric definitions (semantic layer)"):
+    st.caption(
+        "These come from the shared semantic layer — the same definitions the copilot "
+        "uses, so a metric means one thing everywhere."
+    )
+    st.dataframe(
+        [
+            {
+                "Metric": m["label"],
+                "Definition": m["description"],
+                "Unit": m["unit"],
+                "Valid windows": ", ".join(m["valid_windows"]),
+            }
+            for m in list_metrics()
+        ],
+        hide_index=True,
+        use_container_width=True,
+    )
 
 VINTAGE_METRICS = {
     "Cumulative default rate": "cumulative_default_rate",

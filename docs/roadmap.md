@@ -68,9 +68,13 @@ Natural stopping points (each is a legit portfolio artifact on its own):
   **STOP = orchestration story.**
 
 ## Phase 2 — Semantic layer
-- [ ] **C2.1** Metric definitions as the single source of truth (`default_rate`,
-  `cumulative_loss_rate`, `cohort_size`, `avg_dti`, `charge_off_rate`) + the `window` enum
-  contract. BI reads these. **STOP = governed metrics.**
+- [x] **C2.1** `semantic/` — the five governed metrics (`default_rate`,
+  `cumulative_loss_rate`, `cohort_size`, `avg_dti`, `charge_off_rate`) defined once over
+  the marts, each declaring its valid `window`s (`mob_0_6`…`lifetime`). `list_metrics` /
+  `query_metric` / `compare_cohorts` enforce the contract with structured `SemanticError`s
+  (these become the C3.1 copilot tools). BI reads the catalog (governed-metrics expander).
+  8 unit tests + live checks pass (monotonic curves; charge-off hazard peaks in year 2).
+  **STOP = governed metrics.**
 
 ## Phase 3 — Agentic copilot
 - [ ] **C3.1** The three tools (`list_metrics`, `query_metric`, `compare_cohorts`) as plain
