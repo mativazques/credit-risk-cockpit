@@ -1,0 +1,30 @@
+name: credit_risk_cockpit
+version: 1.0.0
+config-version: 2
+
+# Connection profile — defined in profiles.yml (env-driven, not committed).
+profile: credit_risk_cockpit
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+analysis-paths: ["analyses"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Layered dimensional model on BigQuery. Staging = views (cheap, reproducible);
+# facts/dims/marts = tables (serving layer read by BI + the copilot).
+models:
+  credit_risk_cockpit:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: ephemeral
+    marts:
+      +materialized: table
+      +schema: marts

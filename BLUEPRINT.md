@@ -343,5 +343,7 @@ cohort move?" questions a risk/planning team asks. Public data, honestly labeled
   project (`credit-risk-cockpit-2026`, billing + APIs), Kaggle creds verified, `.venv`.
 - C0.2 **done** — GCS bucket `credit-risk-cockpit-raw` (us-central1) created;
   `raw.lending_club_accepted` loaded (2,260,668 rows); readiness gate passed.
-- Next up: **Phase 1 — C1.1** (dbt init). Execution order + stopping points in
+- C1.1 **done** — dbt project scaffolded (dbt-bigquery 1.9.2), env-driven profiles,
+  `dbt debug` connects to BigQuery.
+- Next up: **C1.2** (`stg_loans` staging). Execution order + stopping points in
   [docs/roadmap.md](docs/roadmap.md).

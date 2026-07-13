@@ -39,8 +39,9 @@ Natural stopping points (each is a legit portfolio artifact on its own):
   (data-engineering §5) confirms all 11 needed columns present. **STOP = data lives in BigQuery.**
 
 ## Phase 1 — BI core
-- [ ] **C1.1** dbt project init; profiles via env (not committed); `dbt debug` connects to
-  BigQuery.
+- [x] **C1.1** dbt project init (dbt-bigquery 1.9.2 / dbt-core 1.9.10); env-driven
+  `profiles.yml` (not committed, `profiles.example.yml` is the template); `dbt debug`
+  connects to BigQuery.
 - [ ] **C1.2** `stg_loans` staging (cast/clean/parse dates) + the readiness-gate check.
 - [ ] **C1.3** `fct_loan` + dims (`dim_date`, `dim_borrower`, `dim_loan_product`) + dbt
   tests.
