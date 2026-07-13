@@ -46,7 +46,13 @@ data/
 airflow.db
 airflow.cfg
 astro/.env
-.astro/
+# Keep the DAG-integrity test + its exceptions list under version control (Astro
+# convention); ignore only machine-local astro state.
+**/.astro/config.yaml
+**/.astro/config.yaml.lock
+**/.astro/*.local.yml
+**/.astro/*.local.yaml
+**/.astro/standalone/
 
 # --- Terraform ---
 *.tfstate

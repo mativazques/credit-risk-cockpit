@@ -21,12 +21,22 @@ from pathlib import Path
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-from cosmos import DbtTaskGroup, ProfileConfig, ProjectConfig, RenderConfig
-from cosmos.constants import TestBehavior
+from cosmos import (
+    DbtTaskGroup,
+    ExecutionConfig,
+    ProfileConfig,
+    ProjectConfig,
+    RenderConfig,
+)
+from cosmos.constants import LoadMode, TestBehavior
 
 # Paths inside the Airflow containers (bind-mounted from the repo).
 DBT_PROJECT_DIR = Path("/usr/local/airflow/dbt")
 INGEST_SCRIPT = "/usr/local/airflow/scripts/ingest.py"
+
+# dbt lives in its own venv (see Dockerfile) — Airflow and dbt can't share one
+# environment without a dependency conflict. Cosmos shells out to this binary.
+DBT_EXECUTABLE = "/usr/local/airflow/dbt_venv/bin/dbt"
 
 # Reuse the dbt project's own env-driven profiles.yml (oauth/ADC), same as running
 # dbt locally. The container gets ADC via the mounted ~/.config/gcloud and the
@@ -39,9 +49,17 @@ profile_config = ProfileConfig(
 
 project_config = ProjectConfig(dbt_project_path=DBT_PROJECT_DIR)
 
+execution_config = ExecutionConfig(dbt_executable_path=DBT_EXECUTABLE)
+
 # One task per model, each followed by its data tests -> the classic
-# "dbt run then dbt test" gate, but per-model with real lineage.
-render_config = RenderConfig(test_behavior=TestBehavior.AFTER_EACH)
+# "dbt run then dbt test" gate, but per-model with real lineage. DBT_LS parses the
+# graph offline at DAG-load time (via the venv dbt), so no warehouse connection is
+# needed just to render the tasks.
+render_config = RenderConfig(
+    test_behavior=TestBehavior.AFTER_EACH,
+    load_method=LoadMode.DBT_LS,
+    dbt_executable_path=DBT_EXECUTABLE,
+)
 
 with DAG(
     dag_id="credit_risk_pipeline",
@@ -61,6 +79,7 @@ with DAG(
         project_config=project_config,
         profile_config=profile_config,
         render_config=render_config,
+        execution_config=execution_config,
     )
 
     ingest >> transform

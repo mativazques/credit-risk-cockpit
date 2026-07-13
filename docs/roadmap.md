@@ -62,9 +62,11 @@ Natural stopping points (each is a legit portfolio artifact on its own):
   **STOP = visual BI demo (runs locally).**
 - [x] **C1.7** Airflow local (Astro + Cosmos) in `airflow/`: `credit_risk_pipeline` DAG =
   `ingest` → Cosmos `DbtTaskGroup` (each dbt model its own task, tests after each). dbt
-  project + scripts bind-mounted (one source of truth), BigQuery via mounted ADC.
-  `make airflow-start`. NOTE: code artifact complete + syntax/YAML-validated, but NOT
-  run here — Docker daemon is down and the `astro` CLI isn't installed (both user-side).
+  project + scripts bind-mounted (one source of truth), BigQuery via mounted ADC. dbt
+  runs in an isolated in-image venv (`dbt_venv`) so dbt-core and Airflow don't fight over
+  shared deps; Cosmos points at it via `ExecutionConfig`. `make airflow-start`. VERIFIED:
+  `astro dev start` boots all 4 containers, DAG parses with zero import errors, Cosmos
+  renders 18 tasks (`ingest` + per-model run/test across every staging→mart model).
   **STOP = orchestration story.**
 
 ## Phase 2 — Semantic layer

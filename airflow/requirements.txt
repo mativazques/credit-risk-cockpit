@@ -1,6 +1,7 @@
-# Cosmos renders each dbt model as its own Airflow task; the [dbt-bigquery] extra
-# installs a compatible dbt-bigquery into the Astro image (LOCAL execution mode).
-astronomer-cosmos[dbt-bigquery]==1.8.2
+# Cosmos renders each dbt model as its own Airflow task. dbt itself is NOT installed
+# here — it lives in an isolated venv (see Dockerfile) to avoid the dbt<->Airflow
+# dependency conflict. Cosmos only needs its own (light) package in the Airflow env.
+astronomer-cosmos==1.8.2
 
 # Runtime deps for the upstream `ingest` task (scripts/ingest.py).
 kaggle==1.6.17
