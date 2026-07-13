@@ -64,7 +64,9 @@ def upload_to_gcs(local_path: Path, bucket_name: str, blob_name: str) -> str:
     return f"gs://{bucket_name}/{blob_name}"
 
 
-def load_into_bigquery(gcs_uri: str, project: str, dataset: str, table: str, location: str) -> None:
+def load_into_bigquery(
+    gcs_uri: str, project: str, dataset: str, table: str, location: str, max_bad_records: int
+) -> None:
     client = bigquery.Client(project=project)
     dataset_ref = bigquery.Dataset(f"{project}.{dataset}")
     dataset_ref.location = location
@@ -77,12 +79,17 @@ def load_into_bigquery(gcs_uri: str, project: str, dataset: str, table: str, loc
         skip_leading_rows=1,
         allow_quoted_newlines=True,
         write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+        # The LendingClub file concatenates several quarterly exports, each ending with two
+        # non-data summary lines ("Total amount funded in policy code N: ..."). ~33 such
+        # footer rows land mid-file; skip them rather than fail the whole 2.26M-row load.
+        max_bad_records=max_bad_records,
     )
     print(f"Loading {gcs_uri} -> {table_id} ...")
     job = client.load_table_from_uri(gcs_uri, table_id, job_config=job_config)
     job.result()
     dest = client.get_table(table_id)
-    print(f"Loaded {dest.num_rows:,} rows into {table_id}.")
+    skipped = len(job.errors) if job.errors else 0
+    print(f"Loaded {dest.num_rows:,} rows into {table_id} (skipped {skipped} bad rows).")
 
 
 def main() -> None:
@@ -94,12 +101,13 @@ def main() -> None:
         pass  # env vars can also be exported directly (e.g. in Cloud Shell)
 
     dataset = env("KAGGLE_DATASET", "wordsforthewise/lending-club")
-    file_name = env("KAGGLE_FILE", "accepted_2007_to_2018Q4.csv")
+    file_name = env("KAGGLE_FILE", "accepted_2007_to_2018Q4.csv.gz")
     project = env("GCP_PROJECT")
     bucket = env("GCS_BUCKET")
     bq_dataset = env("BQ_DATASET", "raw")
     bq_table = env("BQ_RAW_TABLE", "lending_club_accepted")
     bq_location = env("BQ_LOCATION", "US")
+    max_bad_records = int(env("BQ_MAX_BAD_RECORDS", "100"))
 
     blob_name = f"lending_club/{file_name}"
     client = storage.Client()
@@ -113,7 +121,7 @@ def main() -> None:
         csv_path = download_from_kaggle(dataset, file_name, data_dir)
         gcs_uri = upload_to_gcs(csv_path, bucket, blob_name)
 
-    load_into_bigquery(gcs_uri, project, bq_dataset, bq_table, bq_location)
+    load_into_bigquery(gcs_uri, project, bq_dataset, bq_table, bq_location, max_bad_records)
     print("Done.")
 
 

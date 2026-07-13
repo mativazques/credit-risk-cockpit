@@ -34,9 +34,9 @@ Natural stopping points (each is a legit portfolio artifact on its own):
 ## Phase 0 — Scaffold
 - [x] **C0.1** Scaffold (`ingest.py`, folders, Makefile, `.env.example`), dedicated GCP
   project + billing + APIs, Kaggle creds verified, `.venv` with kaggle.
-- [ ] **C0.2** `make hydrate` → `raw.lending_club_accepted` loaded (~2.26M rows). Verify
-  with the readiness-gate query (data-engineering §5: all needed columns present).
-  **STOP = data lives in BigQuery.**
+- [x] **C0.2** `make hydrate` → `raw.lending_club_accepted` loaded (2,260,668 rows; 33
+  LendingClub summary-footer lines skipped via `max_bad_records`). Readiness-gate query
+  (data-engineering §5) confirms all 11 needed columns present. **STOP = data lives in BigQuery.**
 
 ## Phase 1 — BI core
 - [ ] **C1.1** dbt project init; profiles via env (not committed); `dbt debug` connects to

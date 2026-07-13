@@ -5,6 +5,9 @@ include .env
 export
 endif
 
+# Interpreter: defaults to python3; override to use a venv, e.g. `make hydrate PYTHON=.venv/bin/python`.
+PYTHON ?= python3
+
 .DEFAULT_GOAL := help
 .PHONY: help hydrate trim teardown
 
@@ -15,7 +18,7 @@ help:
 
 # Full pipeline: raw ingestion (+ dbt marts once Phase 1 lands).
 hydrate:
-	python scripts/ingest.py
+	$(PYTHON) scripts/ingest.py
 	# Phase 1: cd dbt && dbt run && dbt test
 
 # Ephemeral raw: keep the thin serving marts, drop the heavy raw layer.

@@ -266,9 +266,10 @@ Defense in depth (most effective first):
 
   **Kickoff checklist (start the next coding session here):**
   1. **Data source — LendingClub (Kaggle, CC0).** Dataset `wordsforthewise/lending-club`,
-     file `accepted_2007_to_2018Q4.csv` (~2.26M loans, ~1.4 GB). Not committed — pulled at
-     runtime. As of 2026-07-13 the file is **NOT yet downloaded**; the Kaggle CLI and creds
-     are **not yet installed** on this machine.
+     file `accepted_2007_to_2018Q4.csv.gz` (~2.26M loans, ~374 MB gzipped, ~1.4 GB raw;
+     BigQuery loads gzipped CSV directly). Not committed — pulled at runtime. The file
+     concatenates several quarterly exports, each ending with two non-data summary lines
+     ("Total amount funded in policy code N: …"); ~33 such footer rows are skipped on load.
   2. **Kaggle CLI setup.** `pip install kaggle`. Get an API token at
      kaggle.com → Account → *Create New Token* (downloads `kaggle.json`). Provide it as
      `KAGGLE_USERNAME` / `KAGGLE_KEY` in a git-ignored `.env` (do NOT commit `kaggle.json`).
@@ -338,7 +339,9 @@ cohort move?" questions a risk/planning team asks. Public data, honestly labeled
 
 ## Status
 - Design/blueprint: **done.**
-- Phase 0 scaffold: **mostly done** — `ingest.py`, folders, Makefile, `.env`, dedicated
-  GCP project (`credit-risk-cockpit-2026`, billing + APIs), Kaggle creds verified, `.venv`.
-- Next up: **checkpoint C0.2** — `make hydrate` (load `raw.lending_club_accepted`), then
-  Phase 1. Execution order + stopping points in [docs/roadmap.md](docs/roadmap.md).
+- Phase 0 scaffold: **done** — `ingest.py`, folders, Makefile, `.env`, dedicated GCP
+  project (`credit-risk-cockpit-2026`, billing + APIs), Kaggle creds verified, `.venv`.
+- C0.2 **done** — GCS bucket `credit-risk-cockpit-raw` (us-central1) created;
+  `raw.lending_club_accepted` loaded (2,260,668 rows); readiness gate passed.
+- Next up: **Phase 1 — C1.1** (dbt init). Execution order + stopping points in
+  [docs/roadmap.md](docs/roadmap.md).
