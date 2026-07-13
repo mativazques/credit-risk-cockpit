@@ -1,0 +1,16 @@
+version: 2
+
+sources:
+  - name: lending_club
+    description: >
+      Raw LendingClub accepted-loans data (Kaggle `wordsforthewise/lending-club`,
+      CC0), loaded as-is by `scripts/ingest.py`. Public data — no proprietary book.
+    database: "{{ env_var('GCP_PROJECT') }}"
+    schema: "{{ env_var('BQ_DATASET', 'raw') }}"
+    tables:
+      - name: accepted
+        identifier: "{{ env_var('BQ_RAW_TABLE', 'lending_club_accepted') }}"
+        description: >
+          One row per accepted loan, 2007-06 to 2018-12 (2,260,668 rows; ~33
+          per-quarter summary-footer lines were skipped on load). `member_id` is
+          fully redacted (null) in this public release.

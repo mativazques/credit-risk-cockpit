@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: stg_loans
+    description: >
+      Cleaned, one-row-per-loan staging model over raw LendingClub accepted loans.
+      Dates parsed from 'Mon-YYYY', `term_months` derived, `loan_status` standardized
+      into {charged_off, fully_paid, current, other}. This model referencing every
+      metric-source column IS the Phase-1 readiness gate: if a column is missing or
+      renamed upstream, the build fails here.
+    columns:
+      - name: loan_id
+        description: LendingClub loan id (primary key).
+        data_tests: [not_null, unique]
+      - name: issue_date
+        description: Origination month (day set to 1).
+        data_tests: [not_null]
+      - name: term_months
+        description: Loan term in months.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: [36, 60]
+              quote: false
+      - name: loan_status_std
+        description: Standardized status bucket.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['charged_off', 'fully_paid', 'current', 'other']
+      - name: loan_amnt
+        description: Listed loan amount.
+        data_tests: [not_null]
+      - name: grade
+        description: LendingClub credit grade (A-G).
+        data_tests: [not_null]

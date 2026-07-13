@@ -42,7 +42,9 @@ Natural stopping points (each is a legit portfolio artifact on its own):
 - [x] **C1.1** dbt project init (dbt-bigquery 1.9.2 / dbt-core 1.9.10); env-driven
   `profiles.yml` (not committed, `profiles.example.yml` is the template); `dbt debug`
   connects to BigQuery.
-- [ ] **C1.2** `stg_loans` staging (cast/clean/parse dates) + the readiness-gate check.
+- [x] **C1.2** `stg_loans` staging (parse `Mon-YYYY` dates, `term_months`, standardize
+  `loan_status`) + tests; the model referencing every metric-source column IS the
+  readiness gate. Snapshot anchor (`2019-03`) added as a dbt var.
 - [ ] **C1.3** `fct_loan` + dims (`dim_date`, `dim_borrower`, `dim_loan_product`) + dbt
   tests.
 - [ ] **C1.4** `fct_loan_month` via date-spine (MOB 1..term); `default_flag_at_mob`;

@@ -7,19 +7,43 @@ endif
 
 # Interpreter: defaults to python3; override to use a venv, e.g. `make hydrate PYTHON=.venv/bin/python`.
 PYTHON ?= python3
+DBT ?= .venv/bin/dbt
+DBT_DIR := dbt
+# dbt reads GCP_PROJECT / BQ_DBT_DATASET / BQ_LOCATION from the exported .env above.
+export DBT_PROFILES_DIR := $(abspath dbt)
 
 .DEFAULT_GOAL := help
-.PHONY: help hydrate trim teardown
+.PHONY: help hydrate trim teardown dbt-debug dbt-run dbt-test dbt-build dbt-docs
 
 help:
-	@echo "hydrate  - ingest Kaggle -> GCS -> BQ, then build dbt marts (full pipeline)"
-	@echo "trim     - drop raw GCS object + raw/staging BQ tables, keep marts (zero-storage resting state)"
-	@echo "teardown - destroy ALL cloud resources for this project"
+	@echo "hydrate   - ingest Kaggle -> GCS -> BQ, then build + test dbt models (full pipeline)"
+	@echo "dbt-debug - check dbt connects to BigQuery"
+	@echo "dbt-run   - build dbt models        (SELECT=name to target one, e.g. SELECT=stg_loans)"
+	@echo "dbt-test  - run dbt data tests       (SELECT=... optional)"
+	@echo "dbt-build - run + test in DAG order  (SELECT=... optional)"
+	@echo "dbt-docs  - generate dbt docs"
+	@echo "trim      - drop raw GCS object + raw BQ table, keep marts (zero-storage resting state)"
+	@echo "teardown  - destroy ALL cloud resources for this project"
 
-# Full pipeline: raw ingestion (+ dbt marts once Phase 1 lands).
+# Full pipeline: raw ingestion, then build + test the dbt DAG.
 hydrate:
 	$(PYTHON) scripts/ingest.py
-	# Phase 1: cd dbt && dbt run && dbt test
+	$(DBT) build --project-dir $(DBT_DIR)
+
+dbt-debug:
+	$(DBT) debug --project-dir $(DBT_DIR)
+
+dbt-run:
+	$(DBT) run --project-dir $(DBT_DIR) $(if $(SELECT),-s $(SELECT),)
+
+dbt-test:
+	$(DBT) test --project-dir $(DBT_DIR) $(if $(SELECT),-s $(SELECT),)
+
+dbt-build:
+	$(DBT) build --project-dir $(DBT_DIR) $(if $(SELECT),-s $(SELECT),)
+
+dbt-docs:
+	$(DBT) docs generate --project-dir $(DBT_DIR)
 
 # Ephemeral raw: keep the thin serving marts, drop the heavy raw layer.
 # Re-hydrate anytime with `make hydrate`.

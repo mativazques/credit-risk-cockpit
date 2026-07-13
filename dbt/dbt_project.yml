@@ -16,6 +16,12 @@ clean-targets:
   - "target"
   - "dbt_packages"
 
+vars:
+  # LendingClub is a loan-level snapshot; the latest observed payment date (2019-03)
+  # is the effective as-of date. Loans whose issue_date + term extends past it are
+  # right-censored. Used by the intermediate/fact/mart layers.
+  snapshot_date: "2019-03-01"
+
 # Layered dimensional model on BigQuery. Staging = views (cheap, reproducible);
 # facts/dims/marts = tables (serving layer read by BI + the copilot).
 models:
