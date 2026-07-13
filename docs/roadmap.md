@@ -55,7 +55,10 @@ Natural stopping points (each is a legit portfolio artifact on its own):
   `mart_cohort_default` (cohort x grade summary) + dbt_utils tests (range +
   unique-combination) + `dbt docs`. Sanity-checked: monotonic vintage curves,
   grade A→G default 5.7%→45%. **STOP = analytics-eng portfolio piece (queryable marts).**
-- [ ] **C1.6** Streamlit: vintage curves + cohort heatmap, reading marts, `@st.cache_data`.
+- [x] **C1.6** Streamlit cockpit (`app/`): vintage-curve line chart + cohort×grade
+  heatmap, reading the marts via `@st.cache_data(ttl=3600)`. Own venv `.venv-app`
+  (streamlit pins protobuf<6, dbt needs >=6). `make app` runs it; verified headless
+  with Streamlit AppTest (KPIs + both tabs render, no exceptions).
   **STOP = visual BI demo (runs locally).**
 - [ ] **C1.7** Airflow local (astro + Cosmos): each dbt model as its own task; ingest → dbt
   run → dbt test DAG. **STOP = orchestration story.**

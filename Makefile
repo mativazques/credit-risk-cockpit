@@ -9,11 +9,15 @@ endif
 PYTHON ?= python3
 DBT ?= .venv/bin/dbt
 DBT_DIR := dbt
+# The Streamlit app has its own venv: streamlit pins protobuf<6 while dbt needs >=6,
+# so they cannot share an environment. Create it with:
+#   python3 -m venv .venv-app && .venv-app/bin/pip install -r app/requirements.txt
+APP_PYTHON ?= .venv-app/bin/python
 # dbt reads GCP_PROJECT / BQ_DBT_DATASET / BQ_LOCATION from the exported .env above.
 export DBT_PROFILES_DIR := $(abspath dbt)
 
 .DEFAULT_GOAL := help
-.PHONY: help hydrate trim teardown dbt-debug dbt-run dbt-test dbt-build dbt-docs
+.PHONY: help hydrate app trim teardown dbt-debug dbt-run dbt-test dbt-build dbt-docs
 
 help:
 	@echo "hydrate   - ingest Kaggle -> GCS -> BQ, then build + test dbt models (full pipeline)"
@@ -22,6 +26,7 @@ help:
 	@echo "dbt-test  - run dbt data tests       (SELECT=... optional)"
 	@echo "dbt-build - run + test in DAG order  (SELECT=... optional)"
 	@echo "dbt-docs  - generate dbt docs"
+	@echo "app       - run the Streamlit cockpit locally (reads the marts)"
 	@echo "trim      - drop raw GCS object + raw BQ table, keep marts (zero-storage resting state)"
 	@echo "teardown  - destroy ALL cloud resources for this project"
 
@@ -44,6 +49,10 @@ dbt-build:
 
 dbt-docs:
 	$(DBT) docs generate --project-dir $(DBT_DIR)
+
+# Local BI cockpit. Reads the marts via ADC; wrap queries in @st.cache_data.
+app:
+	$(APP_PYTHON) -m streamlit run app/main.py
 
 # Ephemeral raw: keep the thin serving marts, drop the heavy raw layer.
 # Re-hydrate anytime with `make hydrate`.
