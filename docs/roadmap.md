@@ -48,8 +48,9 @@ Natural stopping points (each is a legit portfolio artifact on its own):
 - [x] **C1.3** `fct_loan` (grain: loan) + dims (`dim_date`, `dim_borrower` — junk dim, no
   redacted member_id; `dim_loan_product`) + `int_loan_status_resolved` intermediate +
   surrogate-key/int-rate-band macros + relationship/uniqueness tests (23 pass).
-- [ ] **C1.4** `fct_loan_month` via date-spine (MOB 1..term); `default_flag_at_mob`;
-  right-censoring flag for 2017–2018 (**the risky model — review carefully**).
+- [x] **C1.4** `fct_loan_month` via date-spine (MOB 1..term); `default_flag_at_mob`;
+  `is_observed` right-censoring flag; materialized as a VIEW (avoids persisting ~97M
+  rows → $0 storage). Tests pass (10/10, incl. uniqueness on the full spine).
 - [ ] **C1.5** marts `mart_vintage_curves` + `mart_cohort_default` + tests + `dbt docs`.
   **STOP = analytics-eng portfolio piece (queryable marts).**
 - [ ] **C1.6** Streamlit: vintage curves + cohort heatmap, reading marts, `@st.cache_data`.
