@@ -13,11 +13,15 @@ DBT_DIR := dbt
 # so they cannot share an environment. Create it with:
 #   python3 -m venv .venv-app && .venv-app/bin/pip install -r app/requirements.txt
 APP_PYTHON ?= .venv-app/bin/python
+# The copilot (FastAPI + Gemini) has its own venv — google-genai + fastapi, kept off the
+# Streamlit protobuf<6 pin. Create it with:
+#   python3 -m venv .venv-copilot && .venv-copilot/bin/pip install -r copilot/requirements.txt
+COPILOT_PYTHON ?= .venv-copilot/bin/python
 # dbt reads GCP_PROJECT / BQ_DBT_DATASET / BQ_LOCATION from the exported .env above.
 export DBT_PROFILES_DIR := $(abspath dbt)
 
 .DEFAULT_GOAL := help
-.PHONY: help hydrate app trim teardown dbt-debug dbt-run dbt-test dbt-build dbt-docs
+.PHONY: help hydrate app api copilot-test trim teardown dbt-debug dbt-run dbt-test dbt-build dbt-docs
 
 help:
 	@echo "hydrate   - ingest Kaggle -> GCS -> BQ, then build + test dbt models (full pipeline)"
@@ -27,6 +31,8 @@ help:
 	@echo "dbt-build - run + test in DAG order  (SELECT=... optional)"
 	@echo "dbt-docs  - generate dbt docs"
 	@echo "app       - run the Streamlit cockpit locally (reads the marts)"
+	@echo "api       - run the copilot FastAPI service locally (needs GEMINI_API_KEY)"
+	@echo "copilot-test - run the copilot + semantic unit tests (no LLM, no BigQuery)"
 	@echo "airflow-start - local Airflow via Astro CLI (Cosmos dbt DAG; needs Docker)"
 	@echo "airflow-stop  - stop the local Airflow"
 	@echo "trim      - drop raw GCS object + raw BQ table, keep marts (zero-storage resting state)"
@@ -55,6 +61,14 @@ dbt-docs:
 # Local BI cockpit. Reads the marts via ADC; wrap queries in @st.cache_data.
 app:
 	$(APP_PYTHON) -m streamlit run app/main.py
+
+# Local copilot API (FastAPI + Gemini). Governed tools over the semantic layer.
+api:
+	$(COPILOT_PYTHON) -m uvicorn copilot.api:app --reload --port 8000
+
+# Copilot + semantic unit tests (no LLM, no BigQuery — the model is faked).
+copilot-test:
+	$(COPILOT_PYTHON) -m pytest tests/ -q
 
 # Local Airflow (Astronomer) — Cosmos renders each dbt model as its own task.
 # Needs Docker running + the Astro CLI (https://docs.astronomer.io/astro/cli/install-cli).

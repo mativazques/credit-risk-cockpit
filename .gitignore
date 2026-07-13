@@ -27,6 +27,7 @@ __pycache__/
 *.py[cod]
 .venv/
 .venv-app/
+.venv-copilot/
 venv/
 env/
 .python-version
