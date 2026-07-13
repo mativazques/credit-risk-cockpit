@@ -1,0 +1,67 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: Month-grain calendar dimension (2007-06 .. 2024-12).
+    columns:
+      - name: date_key
+        description: Integer YYYYMM key.
+        data_tests: [not_null, unique]
+      - name: date_month
+        data_tests: [not_null]
+
+  - name: dim_loan_product
+    description: Product dimension — grade, sub_grade, term, interest-rate band.
+    columns:
+      - name: loan_product_key
+        description: Surrogate key.
+        data_tests: [not_null, unique]
+      - name: grade
+        data_tests: [not_null]
+
+  - name: dim_borrower
+    description: >
+      Junk dimension of applicant attributes (member_id is redacted in the public
+      data, so this is not a per-person dimension).
+    columns:
+      - name: borrower_key
+        description: Surrogate key.
+        data_tests: [not_null, unique]
+
+  - name: fct_loan
+    description: One row per loan, with FKs to the dims plus measures and risk flags.
+    columns:
+      - name: loan_id
+        description: Primary key.
+        data_tests: [not_null, unique]
+      - name: issue_date_key
+        description: FK to dim_date.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: loan_product_key
+        description: FK to dim_loan_product.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_loan_product')
+              field: loan_product_key
+      - name: borrower_key
+        description: FK to dim_borrower.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_borrower')
+              field: borrower_key
+      - name: default_flag
+        description: 1 if charged off (the bad outcome), else 0.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1]
+              quote: false
+      - name: observed_mob
+        description: Months of history observed at the snapshot, capped at term.
+        data_tests: [not_null]

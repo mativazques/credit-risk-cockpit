@@ -45,8 +45,9 @@ Natural stopping points (each is a legit portfolio artifact on its own):
 - [x] **C1.2** `stg_loans` staging (parse `Mon-YYYY` dates, `term_months`, standardize
   `loan_status`) + tests; the model referencing every metric-source column IS the
   readiness gate. Snapshot anchor (`2019-03`) added as a dbt var.
-- [ ] **C1.3** `fct_loan` + dims (`dim_date`, `dim_borrower`, `dim_loan_product`) + dbt
-  tests.
+- [x] **C1.3** `fct_loan` (grain: loan) + dims (`dim_date`, `dim_borrower` — junk dim, no
+  redacted member_id; `dim_loan_product`) + `int_loan_status_resolved` intermediate +
+  surrogate-key/int-rate-band macros + relationship/uniqueness tests (23 pass).
 - [ ] **C1.4** `fct_loan_month` via date-spine (MOB 1..term); `default_flag_at_mob`;
   right-censoring flag for 2017–2018 (**the risky model — review carefully**).
 - [ ] **C1.5** marts `mart_vintage_curves` + `mart_cohort_default` + tests + `dbt docs`.
