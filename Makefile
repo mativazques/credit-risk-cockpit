@@ -27,6 +27,8 @@ help:
 	@echo "dbt-build - run + test in DAG order  (SELECT=... optional)"
 	@echo "dbt-docs  - generate dbt docs"
 	@echo "app       - run the Streamlit cockpit locally (reads the marts)"
+	@echo "airflow-start - local Airflow via Astro CLI (Cosmos dbt DAG; needs Docker)"
+	@echo "airflow-stop  - stop the local Airflow"
 	@echo "trim      - drop raw GCS object + raw BQ table, keep marts (zero-storage resting state)"
 	@echo "teardown  - destroy ALL cloud resources for this project"
 
@@ -53,6 +55,14 @@ dbt-docs:
 # Local BI cockpit. Reads the marts via ADC; wrap queries in @st.cache_data.
 app:
 	$(APP_PYTHON) -m streamlit run app/main.py
+
+# Local Airflow (Astronomer) — Cosmos renders each dbt model as its own task.
+# Needs Docker running + the Astro CLI (https://docs.astronomer.io/astro/cli/install-cli).
+airflow-start:
+	cd airflow && astro dev start
+
+airflow-stop:
+	cd airflow && astro dev stop
 
 # Ephemeral raw: keep the thin serving marts, drop the heavy raw layer.
 # Re-hydrate anytime with `make hydrate`.

@@ -60,8 +60,12 @@ Natural stopping points (each is a legit portfolio artifact on its own):
   (streamlit pins protobuf<6, dbt needs >=6). `make app` runs it; verified headless
   with Streamlit AppTest (KPIs + both tabs render, no exceptions).
   **STOP = visual BI demo (runs locally).**
-- [ ] **C1.7** Airflow local (astro + Cosmos): each dbt model as its own task; ingest → dbt
-  run → dbt test DAG. **STOP = orchestration story.**
+- [x] **C1.7** Airflow local (Astro + Cosmos) in `airflow/`: `credit_risk_pipeline` DAG =
+  `ingest` → Cosmos `DbtTaskGroup` (each dbt model its own task, tests after each). dbt
+  project + scripts bind-mounted (one source of truth), BigQuery via mounted ADC.
+  `make airflow-start`. NOTE: code artifact complete + syntax/YAML-validated, but NOT
+  run here — Docker daemon is down and the `astro` CLI isn't installed (both user-side).
+  **STOP = orchestration story.**
 
 ## Phase 2 — Semantic layer
 - [ ] **C2.1** Metric definitions as the single source of truth (`default_rate`,
