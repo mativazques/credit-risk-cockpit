@@ -1,10 +1,11 @@
-"""Credit-Risk Cockpit — BI front-end (C1.6).
+"""Credit-Risk Cockpit — front-end (C1.6 BI + C3.4 copilot chat).
 
-Two views over the governed marts:
+Three views, all over the same governed layer:
   * Vintage curves   — how each origination cohort's risk develops as it ages (MOB).
   * Cohort heatmap   — lifetime default / DTI / loss by (issue cohort x credit grade).
+  * Ask the copilot  — natural-language Q&A via the governed metrics (FastAPI /ask).
 
-Reads only the small aggregated marts, never the raw ~2.3M-loan table.
+BI reads only the small aggregated marts, never the raw ~2.3M-loan table.
 """
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ import streamlit as st
 # single source of truth shared with the copilot — instead of redefining them here.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import chat  # noqa: E402
 from queries import load_cohort_default, load_vintage_curves  # noqa: E402
 from semantic import list_metrics  # noqa: E402
 
@@ -64,7 +66,9 @@ def _fmt_pct(x: float) -> str:
     return f"{x:.1%}" if x is not None else "—"
 
 
-vintage_tab, cohort_tab = st.tabs(["Vintage curves", "Cohort heatmap"])
+vintage_tab, cohort_tab, chat_tab = st.tabs(
+    ["Vintage curves", "Cohort heatmap", "Ask the copilot"]
+)
 
 with vintage_tab:
     df = load_vintage_curves()
@@ -141,3 +145,6 @@ with cohort_tab:
         "Recent cohorts (2017–2018) are still seasoning at the snapshot — their rates "
         "are floors, not final (see 'Share still current')."
     )
+
+with chat_tab:
+    chat.render()

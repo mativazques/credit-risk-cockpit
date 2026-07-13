@@ -105,8 +105,12 @@ Natural stopping points (each is a legit portfolio artifact on its own):
   daily cap (`copilot/ratelimit.py`), answer cache (`copilot/cache.py`), wired into
   `/ask` so only novel on-topic questions spend budget. 25 unit tests.
   **STOP = abuse-safe copilot.**
-- [ ] **C3.4** Streamlit chat panel integrated into the cockpit app. **STOP = full app
-  locally.**
+- [x] **C3.4** Streamlit chat panel (`app/chat.py`) as a third tab in the cockpit, talking
+  to `/ask` via a thin `requests` client (`copilot/client.py`, no google-genai so the
+  Streamlit venv stays clean); shows the governed tools each answer called. 5 client unit
+  tests; headless AppTest confirms all three tabs render (chat input present, BI KPIs
+  query BigQuery) with no exceptions. **STOP = full app locally** *(live chat needs the
+  API key + `make api`).*
 - [ ] **C3.5** *(optional)* Thin FastMCP wrapper exposing the same tool functions.
   **STOP = MCP differentiator.**
 
