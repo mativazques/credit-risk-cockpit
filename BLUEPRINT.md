@@ -224,9 +224,12 @@ a billing kill-switch as backstop** → spend is mathematically bounded.
 **~$3/day** worst case; a billing kill-switch at a low budget makes bankruptcy impossible.
 
 Defense in depth (most effective first):
-- **L0 — Product decision.** Public visitors see a **recorded GIF + pre-computed example
-  Q&A** (zero live tokens); the live copilot sits behind an access gate (password/code)
-  used in interviews. Biggest lever, $0. This is the default.
+- **L0 — Product decision.** The live copilot is **public and fully usable by anyone** —
+  the point is a working product, not a mock. What makes that safe is L1–L5: the global
+  daily cap is the abuse ceiling (once hit, later visitors that day get a graceful "demo
+  limit reached"), and the kill-switch bounds the month. The **recorded GIF in the README
+  is the preview, not a substitute** — it lets someone see it work instantly (no cold
+  start, zero token spend to *view*) before they click through to the live app.
 - **L1 — Bound per-call cost.** `gemini-3.5-flash`, `max_output_tokens=512`, reject input
   over N chars *before* calling Gemini, context-cache the system prompt + metric catalog.
 - **L2 — Bound call volume.** Per-IP + per-session rate limit (token bucket in FastAPI);
@@ -276,8 +279,9 @@ Defense in depth (most effective first):
 - **Phase 4 — Polish & deploy.** Cloud Run deploy (`min-instances=0`), Terraform (main.tf
   covering GCS bucket + BigQuery dataset + Cloud Run service + Artifact Registry repo +
   IAM bindings, **plus the billing kill-switch: budget + Pub/Sub + billing-disable Cloud
-  Function, and Cloud Run `max-instances`** — L5 of the hardening), the **product gate**
-  (public = recorded GIF + pre-computed Q&A; live copilot behind an access code — L0),
+  Function, and Cloud Run `max-instances`** — L5 of the hardening), a **public, live,
+  fully-usable copilot** protected by the daily cap + kill-switch (L0; GIF is the README
+  preview, not a gate),
   `make hydrate`/`trim`/`teardown` targets (trim keeps marts, teardown destroys all via
   `terraform destroy`), README with screenshots/GIF + a short write-up.
 
