@@ -26,9 +26,9 @@ installed (brew) + Docker for Airflow; `make airflow-start` boots it (dbt runs i
 in-image venv, Cosmos points at it). `make app` runs Streamlit at localhost:8501.
 Kaggle creds + GCP_* in .env (gitignored); BigQuery auth via ADC.
 
-The next unchecked checkpoint is C3.1 (the three governed tools — list_metrics /
-query_metric / compare_cohorts — as plain Python over the semantic layer, unit-tested,
-NO LLM yet). Start there and go UP TO checkpoint <PICK ONE, e.g. C3.2>. Stop at each
+The next unchecked checkpoint is C3.2 (Gemini function-calling wiring over the C3.1
+governed tools in copilot/tools.py — AI Studio API key from .env, system prompt, FastAPI
+endpoint). Start there and go UP TO checkpoint <PICK ONE, e.g. C3.3>. Stop at each
 checkpoint for me to review before continuing — do NOT go past the ceiling I set. Small
 commits, English everywhere public, git identity matirvazques@gmail.com.
 ```
@@ -90,8 +90,11 @@ Natural stopping points (each is a legit portfolio artifact on its own):
   **STOP = governed metrics.**
 
 ## Phase 3 — Agentic copilot
-- [ ] **C3.1** The three tools (`list_metrics`, `query_metric`, `compare_cohorts`) as plain
-  Python over the semantic layer; unit-tested; **no LLM yet**. **STOP = governed tools.**
+- [x] **C3.1** The three tools (`list_metrics`, `query_metric`, `compare_cohorts`) in
+  `copilot/tools.py` — plain Python wrapping the semantic layer; contract violations come
+  back as structured data (`{"error": {...}}`), never raised, so a model can self-correct;
+  `TOOL_DECLARATIONS` (the function-calling schema for C3.2) + `dispatch(name, args)`
+  routing. 12 unit tests, **no LLM**. **STOP = governed tools.**
 - [ ] **C3.2** Gemini function-calling wiring (AI Studio API key from `.env`) + system
   prompt + FastAPI endpoint. **STOP = working NL copilot.**
 - [ ] **C3.3** Hardening L1–L4: `max_output_tokens` + input caps, on-topic router
