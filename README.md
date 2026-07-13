@@ -77,9 +77,41 @@ Python · SQL · BigQuery · dbt · Airflow (Cosmos) · FastAPI · Gemini (Verte
 
 ## How to Run
 
-[PLACEHOLDER — Phase 0/1: prerequisites (.env.example, GCP project, Kaggle account),
-ingestion (`python scripts/ingest.py`), dbt run (`dbt run && dbt test`), Airflow
-(`astro dev start`), Streamlit (`streamlit run app/cockpit.py`).]
+### Prerequisites
+
+- A free [Kaggle account](https://www.kaggle.com) → *Account → Create New Token* to get
+  `KAGGLE_USERNAME` / `KAGGLE_KEY`.
+- A GCP project on your own account, with the **BigQuery** and **Cloud Storage** APIs
+  enabled. Create the GCS bucket and BigQuery dataset in a **US region** (`us-central1`)
+  so they stay inside the GCS 5 GB and BigQuery 10 GB Always-Free tiers.
+- `cp .env.example .env` and fill in the values.
+
+### Phase 0 — Ingestion (Kaggle → GCS → BigQuery)
+
+The ingestion script is env-driven and runs identically in three places. There is no
+native Kaggle→GCS transfer, so the ~1.4 GB CSV is downloaded once, then pushed to GCS
+and loaded into BigQuery.
+
+**Recommended — [Google Cloud Shell](https://shell.cloud.google.com)** (free, keeps the
+CSV off your laptop; `gcloud`/`gsutil` are pre-installed):
+
+```bash
+git clone https://github.com/mativazques/credit-risk-cockpit && cd credit-risk-cockpit
+pip install -r scripts/requirements.txt
+cp .env.example .env   # then edit .env
+python scripts/ingest.py
+```
+
+**Or locally** — same commands. **Or in Phase 1+** the same script is wrapped by a Cloud
+Run Job / Airflow task. The script is idempotent: it skips the Kaggle download if the
+object already exists in GCS and replaces the BigQuery table on load.
+
+**Cost:** GCS 1.4 GB and the BigQuery raw table sit inside the Always-Free tiers → $0/mo.
+
+### Phases 1–4
+
+[PLACEHOLDER — dbt (`dbt run && dbt test`), Airflow (`astro dev start`), Streamlit
+(`streamlit run app/cockpit.py`), Cloud Run deploy.]
 
 ---
 

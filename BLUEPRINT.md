@@ -192,9 +192,19 @@ Goal: absolute **$0/mo** for the portfolio demo on GCP free tier.
 - **GCS:** single bucket, ~1.4 GB raw CSV within the 5 GB free-tier allowance.
 - **Artifact Registry:** lean container image (<0.5 GB) stays within the free tier.
 - **Raw CSV never committed** to the repo (requires a free Kaggle account to download).
-- **Tear-down requirement:** a `scripts/teardown.sh` (or `make teardown`) that destroys
-  the Cloud Run service, GCS bucket, and BigQuery dataset must exist before Phase 4 is
-  marked done. Terraform's `terraform destroy` doubles as the tear-down path.
+- **Ephemeral raw layer (`make trim`).** The raw CSV/table is reproducible from Kaggle,
+  so it is treated as disposable, not precious. The serving layer (Streamlit) reads only
+  the small pre-aggregated marts (KB–MB), never the ~1.4 GB raw. `make trim` drops the
+  raw GCS object + `raw`/`staging` BQ tables and keeps the marts, so the demo's resting
+  state is ~$0 storage. Since the GCS 5 GB / BQ 10 GB Always-Free tiers are
+  **billing-account-wide** (shared across projects), trimming finished flagships frees
+  headroom for new portfolio projects. Re-hydrate anytime with `make hydrate` (ingest +
+  dbt run). Honest tradeoff: while trimmed the pipeline can't `dbt run` until re-ingested
+  — fine for a demo on static data; the DAG/Terraform still demonstrate the full pipeline.
+- **Tear-down requirement:** a `make teardown` (Terraform's `terraform destroy`) that
+  destroys the Cloud Run service, GCS bucket, and BigQuery dataset must exist before
+  Phase 4 is marked done. `trim` keeps the thin serving layer alive; `teardown` nukes
+  everything.
 
 ## Phased plan
 - **Phase 0 — Scaffold.** Repo, `.gitignore` (secrets out), ingestion script CSV→GCS→BQ,
@@ -227,7 +237,8 @@ Goal: absolute **$0/mo** for the portfolio demo on GCP free tier.
   NL risk Q&A with narrative diagnosis. *This is the differentiator.*
 - **Phase 4 — Polish & deploy.** Cloud Run deploy (`min-instances=0`), Terraform (main.tf
   covering GCS bucket + BigQuery dataset + Cloud Run service + Artifact Registry repo +
-  IAM bindings), `scripts/teardown.sh`, README with screenshots/GIF + a short write-up.
+  IAM bindings), `make hydrate`/`trim`/`teardown` targets (trim keeps marts, teardown
+  destroys all via `terraform destroy`), README with screenshots/GIF + a short write-up.
 
 ## Interview story (defensibility)
 Every layer maps to something Matias owns day-to-day: cohorts, vintage curves, credit
