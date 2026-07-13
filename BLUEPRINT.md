@@ -130,7 +130,7 @@ provisions) are unaudited — used to motivate the mechanism, not to size the be
 Kaggle CSV → GCS (raw) → BigQuery (raw)
                           → dbt (staging → intermediate → marts + semantic layer)
                           → Streamlit  (BI cockpit + chat)
-                          → FastAPI + Gemini (Vertex AI) + MCP  (agentic copilot)
+                          → FastAPI + Gemini (AI Studio free · Vertex in prod) + MCP  (copilot)
                           → Cloud Run (deploy, min-instances=0)   ·   Terraform (IaC)
 ```
 
@@ -170,11 +170,17 @@ Deferred to a later phase; buildable via a synthetic state-machine and clearly l
 "simulated" if pursued.
 
 ### Agentic copilot
-- **FastAPI** service, **`gemini-3.5-flash` via Vertex AI** (per stack default; Claude
-  deferred). Model choice + spend bounding covered in Cost & abuse hardening.
-- **MCP server** exposing governed tools: `list_metrics`, `query_metric(cohort, window)`,
-  `compare_cohorts(a, b, metric)`. Agent decomposes the question → calls tools →
-  narrates. No free-form SQL against raw tables.
+- **FastAPI** service, **`gemini-flash-lite-latest` via Google AI Studio** free tier for
+  the demo (Vertex = production path; Claude deferred). Model choice + spend bounding in
+  Cost & abuse hardening.
+- **Tools, built incrementally (simplicity first):**
+  1. **Gemini native function calling** — the three governed tools (`list_metrics`,
+     `query_metric(cohort, window)`, `compare_cohorts(a, b, metric)`) as plain Python
+     functions. One API call, no extra server → a working copilot fast.
+  2. **Thin MCP wrapper (later)** — expose the *same* functions via a FastMCP server.
+     This is the portfolio differentiator ("MCP in production") with no logic rewrite; it
+     can be skipped without losing a working demo.
+  Agent decomposes the question → calls tools → narrates. No free-form SQL against raw tables.
 - **`window` enum contract for `query_metric`:** allowed values `mob_0_6`, `mob_0_12`,
   `mob_0_24`, `mob_0_36`, `mob_0_60`, `lifetime`. Each metric declares which windows are
   valid (e.g. `cumulative_loss_rate` is valid for all; `charge_off_rate` is valid from
@@ -188,12 +194,18 @@ Goal: absolute **$0/mo** for the portfolio demo on GCP free tier.
   dataset, no freshness loss; avoids repeated on-demand scan charges.
 - **Cloud Run:** `min-instances=0` (scale-to-zero); cold start ~4 s is acceptable for a
   portfolio demo.
-- **Vertex AI:** model pinned to `gemini-3.5-flash` (GA, no announced retirement; the
-  `2.0-flash` family was shut down 2026-06-01 and `2.5-flash` retires 2026-10-16). Pricing
-  ~$1.50/M input · $9.00/M output · $0.15/M cached input. Tool-call payloads kept narrow
-  (metric names + filters only, not raw table dumps); `max_output_tokens` capped and the
-  fixed system prompt + metric catalog served via context caching. See Cost & abuse
-  hardening for how public LLM spend is bounded against abuse.
+- **LLM provider — Google AI Studio (Gemini Developer API) free tier for the demo.**
+  Simplicity + lowest cost wins here: auth is a single API key (vs a Vertex service
+  account), and the **free tier has no billing attached** → 1,500 requests/day, and if
+  abused the worst case is a graceful "daily limit reached", **$0 exposure, no kill-switch
+  needed**. The data-used-for-training caveat is moot — LendingClub is public, nothing
+  confidential passes through. **Vertex AI is kept as the documented production path**
+  (SLAs, VPC, no-training guarantee) — the interview story, not the demo runtime.
+  - **Model:** `gemini-flash-lite-latest` (currently `gemini-3.1-flash-lite`,
+    ~$0.25/M in · $1.50/M out if ever on paid; free on the free tier). Cheaper + simpler
+    than `3.5-flash`; the `2.0-flash` family shut down 2026-06-01 and `2.5-flash` retires
+    2026-10-16, so an alias avoids retirement breakage. Payloads kept narrow;
+    `max_output_tokens` capped; system prompt + metric catalog context-cached.
 - **GCS:** single bucket, ~1.4 GB raw CSV within the 5 GB free-tier allowance.
 - **Artifact Registry:** lean container image (<0.5 GB) stays within the free tier.
 - **Raw CSV never committed** to the repo (requires a free Kaggle account to download).
@@ -212,38 +224,41 @@ Goal: absolute **$0/mo** for the portfolio demo on GCP free tier.
   everything.
 
 ### Cost & abuse hardening (public LLM demo)
-A public copilot URL is an anonymous, per-message token-spend endpoint — an abuse vector.
-Two facts drive the design: (1) **GCP budgets do not cap spend, they only alert** — the
-only hard cap is a kill-switch that disables billing; (2) **`gemini-3.5-flash` uses
-Dynamic Shared Quota**, so the cap cannot come from a Vertex RPM quota knob — it must come
-from the app layer + the kill-switch. Strategy: **bound `cost-per-call × call-count`, then
-a billing kill-switch as backstop** → spend is mathematically bounded.
+A public copilot URL is an anonymous, per-message endpoint — an abuse vector. The chosen
+design makes abuse **structurally harmless**: on the **AI Studio free tier there is no
+billing attached**, so Google's own **1,500 requests/day quota is the hard $0 ceiling** —
+you cannot be charged, period. That removes the need for a billing kill-switch entirely.
+The remaining layers exist not to prevent a bill (there isn't one) but to make the free
+daily budget **last** and stay **on-topic**, so real visitors get a working demo.
 
-**Worst-case math (reassurance):** per call bounded to input ≤1k tokens (~$0.0015) +
-`max_output_tokens=512` (~$0.0046) ≈ **~$0.006/call**. A global daily cap of 500 calls →
-**~$3/day** worst case; a billing kill-switch at a low budget makes bankruptcy impossible.
+**Worst-case reassurance:** free tier = literally $0 no matter the traffic; once the
+daily quota is hit, later visitors that day get a graceful "demo limit reached". If the
+project is ever moved to paid Vertex, per-call cost is bounded to input ≤1k (~$0.0004) +
+`max_output_tokens=512` (~$0.0008) ≈ **~$0.001/call** on flash-lite; then the kill-switch
+(L5) becomes the backstop.
 
 Defense in depth (most effective first):
 - **L0 — Product decision.** The live copilot is **public and fully usable by anyone** —
-  the point is a working product, not a mock. What makes that safe is L1–L5: the global
-  daily cap is the abuse ceiling (once hit, later visitors that day get a graceful "demo
-  limit reached"), and the kill-switch bounds the month. The **recorded GIF in the README
-  is the preview, not a substitute** — it lets someone see it work instantly (no cold
-  start, zero token spend to *view*) before they click through to the live app.
-- **L1 — Bound per-call cost.** `gemini-3.5-flash`, `max_output_tokens=512`, reject input
-  over N chars *before* calling Gemini, context-cache the system prompt + metric catalog.
-- **L2 — Bound call volume.** Per-IP + per-session rate limit (token bucket in FastAPI);
-  a global daily cap (counter) that returns a canned "demo limit reached" without hitting
-  Gemini; Cloud Run `max-instances` + `concurrency` cap parallelism.
+  the point is a working product, not a mock. What makes that safe is the free-tier $0
+  ceiling + L1–L4 below. The **recorded GIF in the README is the preview, not a
+  substitute** — it lets someone see it work instantly (no cold start) before clicking
+  through to the live app.
+- **L1 — Bound per-call cost.** `gemini-flash-lite-latest`, `max_output_tokens=512`,
+  reject input over N chars *before* calling Gemini, context-cache the system prompt +
+  metric catalog (stretches both the free quota and any future paid spend).
+- **L2 — Bound call volume.** Per-IP + per-session rate limit (token bucket in FastAPI) so
+  one visitor can't burn the shared 1,500/day; Cloud Run `max-instances` + `concurrency`
+  cap parallelism.
 - **L3 — On-topic router.** A cheap deterministic pre-filter (allowed intents/keywords or
-  embedding similarity) runs BEFORE the expensive call; off-topic questions get a canned
-  refusal with **zero Gemini tokens** ("I only answer questions about this demo's
-  credit-risk metrics — vintage, cohorts, default rate…"). Reinforced by the existing
-  tool-constrained design: the model can only call `list_metrics`/`query_metric`/
-  `compare_cohorts`, so off-topic maps to no tool → cheap structured refusal.
+  embedding similarity) runs BEFORE the model call; off-topic questions get a canned
+  refusal with **zero tokens** ("I only answer questions about this demo's credit-risk
+  metrics — vintage, cohorts, default rate…"). Reinforced by the tool-constrained design:
+  the model can only call `list_metrics`/`query_metric`/`compare_cohorts`, so off-topic
+  maps to no tool → cheap structured refusal.
 - **L4 — Cache.** Exact/semantic cache of `question → answer` kills repeated-spam cost.
-- **L5 — Backstop (the only hard cap).** Budget → Pub/Sub → Cloud Function that disables
-  billing on the project, plus budget alerts at 50/90/100%. Delivered via Terraform.
+- **L5 — Backstop (only if moved to paid Vertex).** Budget → Pub/Sub → Cloud Function that
+  disables billing, plus alerts at 50/90/100%. **Not needed on the AI Studio free tier**
+  (no billing to disable); documented so the production/Vertex path stays safe.
 
 ## Phased plan
 - **Phase 0 — Scaffold.** Repo, `.gitignore` (secrets out), ingestion script CSV→GCS→BQ,
@@ -270,20 +285,21 @@ Defense in depth (most effective first):
 - **Phase 1 — BI core (standalone win).** Airflow with astronomer-cosmos set up from the
   start (each dbt model as its own Airflow task, real lineage in the DAG). dbt: staging +
   vintage/cohort marts + tests + docs. Dashboard with vintage curves + cohort heatmap.
-  *This alone is a strong analytics-eng portfolio piece.*
+  Screenshots for the README are captured **manually** (no automation — not worth the
+  tooling for a handful of stills). *This alone is a strong analytics-eng portfolio piece.*
 - **Phase 2 — Semantic layer.** Metrics defined once; BI and agent read the same defs.
-- **Phase 3 — Agentic copilot.** FastAPI + `gemini-3.5-flash` (Vertex AI) + MCP tools over
-  the semantic layer; NL risk Q&A with narrative diagnosis. *This is the differentiator.*
-  Includes the **app-layer cost/abuse hardening** (L1–L4 in Cost & abuse hardening):
-  on-topic router, input caps + `max_output_tokens`, per-IP + global rate limit, cache.
-- **Phase 4 — Polish & deploy.** Cloud Run deploy (`min-instances=0`), Terraform (main.tf
-  covering GCS bucket + BigQuery dataset + Cloud Run service + Artifact Registry repo +
-  IAM bindings, **plus the billing kill-switch: budget + Pub/Sub + billing-disable Cloud
-  Function, and Cloud Run `max-instances`** — L5 of the hardening), a **public, live,
-  fully-usable copilot** protected by the daily cap + kill-switch (L0; GIF is the README
-  preview, not a gate),
-  `make hydrate`/`trim`/`teardown` targets (trim keeps marts, teardown destroys all via
-  `terraform destroy`), README with screenshots/GIF + a short write-up.
+- **Phase 3 — Agentic copilot.** FastAPI + `gemini-flash-lite-latest` (Google AI Studio
+  free tier) + governed tools over the semantic layer; NL risk Q&A with narrative
+  diagnosis. *This is the differentiator.* Tools built incrementally: **native function
+  calling first** (working copilot), **thin MCP wrapper second** (differentiator, same
+  functions). Includes **app-layer hardening** (L1–L4): on-topic router, input caps +
+  `max_output_tokens`, per-IP + global rate limit, cache.
+- **Phase 4 — Polish & deploy.** Cloud Run deploy (`min-instances=0`, `max-instances`
+  capped), Terraform (main.tf covering GCS bucket + BigQuery dataset + Cloud Run service +
+  Artifact Registry repo + IAM bindings), a **public, live, fully-usable copilot** (the
+  AI Studio free-tier daily cap is the $0 abuse ceiling; GIF is the README preview, not a
+  gate), `make hydrate`/`trim`/`teardown` targets, README with screenshots/GIF + a short
+  write-up. *Billing kill-switch (L5) only if the project is ever moved to paid Vertex.*
 
 ## Interview story (defensibility)
 Every layer maps to something Matias owns day-to-day: cohorts, vintage curves, credit
@@ -304,10 +320,25 @@ cohort move?" questions a risk/planning team asks. Public data, honestly labeled
    in Phase 4. Not optional.
 6. **Infrastructure goal: absolute $0/mo for the portfolio demo** — achieved via
    scale-to-zero Cloud Run, BigQuery caching, GCS/Artifact Registry within free tiers,
-   and Gemini Flash with narrow payloads. See Cost controls.
+   and Gemini Flash-Lite with narrow payloads. See Cost controls.
 7. **License: MIT.**
+8. **LLM provider (demo) = Google AI Studio (Gemini API) free tier; model =
+   `gemini-flash-lite-latest`.** Chosen for simplicity + lowest cost: API-key auth, no
+   billing attached → 1,500 req/day is a hard $0 ceiling, no kill-switch needed. Vertex AI
+   is the documented production path (interview story), not the demo runtime.
+9. **Copilot tools built incrementally: native function calling first, thin MCP wrapper
+   second.** A working copilot ships before the MCP differentiator; MCP reuses the same
+   functions and can be skipped without losing a usable demo.
+10. **GCP project = dedicated `credit-risk-cockpit-2026`** (billing linked, BigQuery +
+    Cloud Storage APIs enabled), separate from Matias's `antigravity-planning-2026` twin;
+    global `gcloud config` unchanged (project selected via `.env`).
+11. **Live copilot is public and fully usable** — a real product, not a mock. The README
+    GIF is the preview, not a gate. Safety comes from the free-tier $0 ceiling + hardening.
+12. **README screenshots captured manually** — no screenshot automation in v1.
 
 ## Status
 - Design/blueprint: **done.**
-- Next up: **Phase 0 scaffold** (folder structure, `.gitignore`, initial dbt project,
-  Airflow DAG, CSV→GCS→BQ ingestion script). No code written yet.
+- Phase 0 scaffold: **mostly done** — `ingest.py`, folders, Makefile, `.env`, dedicated
+  GCP project (`credit-risk-cockpit-2026`, billing + APIs), Kaggle creds verified, `.venv`.
+- Next up: **checkpoint C0.2** — `make hydrate` (load `raw.lending_club_accepted`), then
+  Phase 1. Execution order + stopping points in [docs/roadmap.md](docs/roadmap.md).
