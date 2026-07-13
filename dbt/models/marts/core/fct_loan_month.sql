@@ -48,6 +48,7 @@ select
     issue_date,
     concat(cast(extract(year from issue_date) as string), '-Q',
            cast(extract(quarter from issue_date) as string)) as issue_year_quarter,
+    term_months,
     mob,
     date_add(issue_date, interval mob month) as as_of_date,
 

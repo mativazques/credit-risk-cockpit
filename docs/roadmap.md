@@ -51,8 +51,10 @@ Natural stopping points (each is a legit portfolio artifact on its own):
 - [x] **C1.4** `fct_loan_month` via date-spine (MOB 1..term); `default_flag_at_mob`;
   `is_observed` right-censoring flag; materialized as a VIEW (avoids persisting ~97M
   rows → $0 storage). Tests pass (10/10, incl. uniqueness on the full spine).
-- [ ] **C1.5** marts `mart_vintage_curves` + `mart_cohort_default` + tests + `dbt docs`.
-  **STOP = analytics-eng portfolio piece (queryable marts).**
+- [x] **C1.5** marts `mart_vintage_curves` (cohort x term x MOB triangle) +
+  `mart_cohort_default` (cohort x grade summary) + dbt_utils tests (range +
+  unique-combination) + `dbt docs`. Sanity-checked: monotonic vintage curves,
+  grade A→G default 5.7%→45%. **STOP = analytics-eng portfolio piece (queryable marts).**
 - [ ] **C1.6** Streamlit: vintage curves + cohort heatmap, reading marts, `@st.cache_data`.
   **STOP = visual BI demo (runs locally).**
 - [ ] **C1.7** Airflow local (astro + Cosmos): each dbt model as its own task; ingest → dbt

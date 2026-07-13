@@ -1,0 +1,82 @@
+version: 2
+
+models:
+  - name: mart_vintage_curves
+    description: >
+      Vintage triangle — cumulative default- and loss-rate by
+      (issue_year_quarter x term_months x mob). Powers the vintage-curve chart and
+      the cumulative_loss_rate metric. `fully_observed=false` rows are right-censored.
+    columns:
+      - name: issue_year_quarter
+        description: Origination cohort (e.g. 2016-Q2).
+        data_tests: [not_null]
+      - name: term_months
+        description: Loan term; in the grain to keep 36/60-month curves separate.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: [36, 60]
+              quote: false
+      - name: mob
+        description: Month-on-book (1..term_months).
+        data_tests: [not_null]
+      - name: cohort_size
+        description: Loans in the cohort x term (stable across mob).
+        data_tests: [not_null]
+      - name: cumulative_default_rate
+        description: Cumulative charged-off loans / cohort_size, by mob.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+              inclusive: true
+      - name: cumulative_loss_rate
+        description: Cumulative net charge-off principal / originated_amount, by mob.
+        data_tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+              inclusive: true
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - issue_year_quarter
+            - term_months
+            - mob
+
+  - name: mart_cohort_default
+    description: >
+      Cohort default summary at the loan grain — one row per
+      (issue_year_quarter x grade) with lifetime-to-snapshot outcome metrics.
+      Home of cohort_size / default_rate / avg_dti; cohort heatmap source.
+    columns:
+      - name: issue_year_quarter
+        description: Origination cohort.
+        data_tests: [not_null]
+      - name: grade
+        description: LendingClub credit grade (A..G).
+        data_tests: [not_null]
+      - name: cohort_size
+        description: Loans in the cohort x grade.
+        data_tests: [not_null]
+      - name: default_rate
+        description: Charged-off loans / cohort_size (lifetime to snapshot).
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+              inclusive: true
+      - name: share_still_current
+        description: Share of the cohort still `current` at the snapshot (seasoning).
+        data_tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+              inclusive: true
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - issue_year_quarter
+            - grade
