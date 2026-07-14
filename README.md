@@ -49,10 +49,23 @@ breakdown. Public dataset, stated assumptions, illustrative — not a live book.
 
 Try it live: **https://credit-risk-cockpit-kpn2dzalva-uc.a.run.app**
 
-[PLACEHOLDER — dashboard: vintage curves + cohort×grade heatmap → `docs/img/dashboard.png`]
+**Vintage curves** — cumulative default rate by month-on-book, one line per issue
+cohort. Right-censored points are hidden by default so cohorts are compared on equal
+footing.
 
-[PLACEHOLDER — GIF: the copilot answering "why did Q3-2021 lift vs Q2?" end-to-end,
-showing the governed tools each answer called → `docs/img/copilot.gif`]
+![Vintage curves: cumulative default rate by month on book, per issue cohort](docs/img/dashboard.png)
+
+**Cohort × grade heatmap** — default rate across issue quarter and LendingClub credit
+grade over the full 2.26M-loan book, with the governed metric definitions one click away.
+
+![Cohort-by-grade heatmap: default rate across issue quarter and credit grade](docs/img/cohort-heatmap.png)
+
+**Ask the copilot** — a natural-language question answered only from the governed tools
+(`list_metrics`, `query_metric`, `compare_cohorts`). Every answer states the numbers,
+the driver, and which governed tool it called, so each figure is traceable back to a
+single metric definition — no free-form SQL, no invented numbers.
+
+![Copilot comparing two cohorts' default rates and naming the governed tool it called](docs/img/copilot.gif)
 
 ---
 

@@ -151,10 +151,10 @@ Natural stopping points (each is a legit portfolio artifact on its own):
   emulate; reproduced only on Cloud Run, never locally under runc). Fix:
   `ARROW_DEFAULT_MEMORY_POOL=system` in the Dockerfile ENV (commit b96f640), rebuilt +
   redeployed; live copilot verified answering end-to-end with zero segfaults.
-- [ ] **C4.4** README screenshots + copilot GIF + short write-up. Assets go to
-  `docs/img/dashboard.png` (vintage curves + cohort×grade heatmap) and
-  `docs/img/copilot.gif` (the copilot answering); README already references those paths.
-  Capture against the stable live URL. **STOP = portfolio-ready.**
+- [x] **C4.4** README screenshots + copilot GIF + short write-up. Assets in
+  `docs/img/`: `dashboard.png` (vintage curves), `cohort-heatmap.png` (cohort×grade
+  heatmap) and `copilot.gif` (the copilot comparing 2014-Q1 vs 2015-Q1 and naming the
+  governed tool it called). Captured against the stable live URL. **STOP = portfolio-ready.**
 
 > *Billing kill-switch (hardening L5) is only needed if the copilot is ever moved from the
 > AI Studio free tier to paid Vertex — see BLUEPRINT Cost & abuse hardening.*
