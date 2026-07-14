@@ -1,0 +1,25 @@
+# Keep the image lean (<0.5 GB, Artifact Registry free tier) and secret-free.
+.git
+.gitignore
+.venv
+.venv-app
+.venv-copilot
+.venv-mcp
+**/__pycache__
+*.py[cod]
+.pytest_cache
+
+# Never bake secrets into the image — Cloud Run injects env at runtime.
+.env
+*.env
+
+# Not needed at runtime.
+tests
+airflow
+dbt/target
+dbt/dbt_packages
+dbt/logs
+docs
+terraform
+*.md
+data

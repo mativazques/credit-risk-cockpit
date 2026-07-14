@@ -1,0 +1,5 @@
+# Copy to terraform.tfvars (git-ignored) and fill in, or pass with -var on the CLI.
+# The Makefile deploy targets pass these from .env, so you usually don't need this file.
+project_id = "your-gcp-project"
+region     = "us-central1"
+image      = "us-central1-docker.pkg.dev/your-gcp-project/cockpit/credit-risk-cockpit:latest"

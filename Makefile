@@ -24,8 +24,15 @@ MCP_PYTHON ?= .venv-mcp/bin/python
 # dbt reads GCP_PROJECT / BQ_DBT_DATASET / BQ_LOCATION from the exported .env above.
 export DBT_PROFILES_DIR := $(abspath dbt)
 
+# Deploy (C4.2): Terraform owns the serving layer; the image lands in Artifact Registry.
+TF_DIR := terraform
+GCP_REGION ?= us-central1
+AR_IMAGE := $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT)/cockpit/credit-risk-cockpit:latest
+TF := terraform -chdir=$(TF_DIR)
+TF_VARS := -var project_id=$(GCP_PROJECT) -var region=$(GCP_REGION) -var bq_dbt_dataset=$(BQ_DBT_DATASET)
+
 .DEFAULT_GOAL := help
-.PHONY: help hydrate app api mcp copilot-test mcp-test trim teardown dbt-debug dbt-run dbt-test dbt-build dbt-docs
+.PHONY: help hydrate app api mcp copilot-test mcp-test docker-build tf-init tf-bootstrap secret-push image-push deploy trim teardown dbt-debug dbt-run dbt-test dbt-build dbt-docs
 
 help:
 	@echo "hydrate   - ingest Kaggle -> GCS -> BQ, then build + test dbt models (full pipeline)"
@@ -41,8 +48,14 @@ help:
 	@echo "mcp-test  - run the MCP server unit tests (.venv-mcp; no live client, no BigQuery)"
 	@echo "airflow-start - local Airflow via Astro CLI (Cosmos dbt DAG; needs Docker)"
 	@echo "airflow-stop  - stop the local Airflow"
+	@echo "docker-build - build the Cloud Run image locally"
+	@echo "tf-init   - terraform init (deploy layer)"
+	@echo "tf-bootstrap - create Artifact Registry + secret container + enable APIs"
+	@echo "secret-push  - push GEMINI_API_KEY into Secret Manager (value stays out of git/tf)"
+	@echo "image-push   - build (linux/amd64) + push the image to Artifact Registry"
+	@echo "deploy    - terraform apply the Cloud Run service; prints the public URL"
 	@echo "trim      - drop raw GCS object + raw BQ table, keep marts (zero-storage resting state)"
-	@echo "teardown  - destroy ALL cloud resources for this project"
+	@echo "teardown  - terraform destroy the serving layer (data layer kept)"
 
 # Full pipeline: raw ingestion, then build + test the dbt DAG.
 hydrate:
@@ -94,6 +107,38 @@ airflow-start:
 airflow-stop:
 	cd airflow && astro dev stop
 
+# --- Deploy (C4) -----------------------------------------------------------------
+# Build the Cloud Run image locally (single container, two isolated venvs).
+docker-build:
+	docker build -t credit-risk-cockpit:local .
+
+tf-init:
+	$(TF) init
+
+# Create only the pieces we need before we can push: registry + secret container + APIs.
+# The Cloud Run service itself comes later in `deploy`, once the image exists.
+tf-bootstrap:
+	$(TF) apply $(TF_VARS) -var image=$(AR_IMAGE) \
+		-target=google_project_service.apis \
+		-target=google_artifact_registry_repository.cockpit \
+		-target=google_secret_manager_secret.gemini
+
+# Push the Gemini key value into the secret Terraform created — value stays out of git/tf state.
+secret-push:
+	printf %s "$(GEMINI_API_KEY)" | gcloud secrets versions add gemini-api-key \
+		--project=$(GCP_PROJECT) --data-file=-
+
+# Build for Cloud Run's amd64 and push to Artifact Registry.
+image-push:
+	gcloud auth configure-docker $(GCP_REGION)-docker.pkg.dev --quiet
+	docker build --platform linux/amd64 -t $(AR_IMAGE) .
+	docker push $(AR_IMAGE)
+
+# Create/patch the Cloud Run service and wire the image; print the public URL.
+deploy:
+	$(TF) apply $(TF_VARS) -var image=$(AR_IMAGE)
+	@echo "Deployed at: $$($(TF) output -raw url)"
+
 # Ephemeral raw: keep the thin serving marts, drop the heavy raw layer.
 # Re-hydrate anytime with `make hydrate`.
 trim:
@@ -103,11 +148,7 @@ trim:
 	# Phase 1: also drop the dbt staging tables/dataset here once they exist.
 	@echo "Done. Re-hydrate anytime with: make hydrate"
 
-# Full destroy. Terraform owns the project in Phase 4; the gsutil/bq lines are a
-# fallback so teardown works before Terraform exists.
+# Destroy the serving layer (Cloud Run, SA, IAM, registry, secret). The data layer
+# (GCS raw bucket + BigQuery datasets) is left intact — use `make trim` to drop raw.
 teardown:
-	@echo "Destroying all cloud resources..."
-	# Phase 4: cd terraform && terraform destroy -auto-approve
-	-gsutil -m rm -r gs://$(GCS_BUCKET) 2>/dev/null || true
-	-bq rm -r -f -d $(GCP_PROJECT):$(BQ_DATASET)
-	@echo "Teardown complete."
+	$(TF) destroy $(TF_VARS) -var image=$(AR_IMAGE)
