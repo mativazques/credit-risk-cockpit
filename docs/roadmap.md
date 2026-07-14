@@ -111,8 +111,13 @@ Natural stopping points (each is a legit portfolio artifact on its own):
   tests; headless AppTest confirms all three tabs render (chat input present, BI KPIs
   query BigQuery) with no exceptions. **STOP = full app locally** *(live chat needs the
   API key + `make api`).*
-- [ ] **C3.5** *(optional)* Thin FastMCP wrapper exposing the same tool functions.
-  **STOP = MCP differentiator.**
+- [x] **C3.5** Thin FastMCP wrapper (`copilot/mcp_server.py`) exposing the same three
+  governed tools over MCP (stdio) — delegates straight to `copilot/tools.py`, so an MCP
+  client (Claude Desktop, Cursor) and the Gemini copilot share one governed semantic
+  layer. Own venv `.venv-mcp` (Python 3.12; the MCP SDK drops 3.9). `make mcp` /
+  `make mcp-test`; client wiring in [mcp.md](mcp.md). 6 unit tests; VERIFIED live over a
+  real stdio handshake (list_tools + compare_cohorts against BigQuery, error-as-data
+  preserved). **STOP = MCP differentiator.**
 
 ## Phase 4 — Polish & deploy
 - [ ] **C4.1** Dockerfile; container runs locally.

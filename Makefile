@@ -17,11 +17,15 @@ APP_PYTHON ?= .venv-app/bin/python
 # Streamlit protobuf<6 pin. Create it with:
 #   python3 -m venv .venv-copilot && .venv-copilot/bin/pip install -r copilot/requirements.txt
 COPILOT_PYTHON ?= .venv-copilot/bin/python
+# The MCP server needs its own venv too: the MCP SDK requires Python >=3.10, which the
+# other venvs (3.9) can't satisfy. Create it with a 3.10+ interpreter, e.g.:
+#   python3.12 -m venv .venv-mcp && .venv-mcp/bin/pip install -r copilot/requirements-mcp.txt
+MCP_PYTHON ?= .venv-mcp/bin/python
 # dbt reads GCP_PROJECT / BQ_DBT_DATASET / BQ_LOCATION from the exported .env above.
 export DBT_PROFILES_DIR := $(abspath dbt)
 
 .DEFAULT_GOAL := help
-.PHONY: help hydrate app api copilot-test trim teardown dbt-debug dbt-run dbt-test dbt-build dbt-docs
+.PHONY: help hydrate app api mcp copilot-test mcp-test trim teardown dbt-debug dbt-run dbt-test dbt-build dbt-docs
 
 help:
 	@echo "hydrate   - ingest Kaggle -> GCS -> BQ, then build + test dbt models (full pipeline)"
@@ -32,7 +36,9 @@ help:
 	@echo "dbt-docs  - generate dbt docs"
 	@echo "app       - run the Streamlit cockpit locally (reads the marts)"
 	@echo "api       - run the copilot FastAPI service locally (needs GEMINI_API_KEY)"
+	@echo "mcp       - run the MCP server (stdio) exposing the governed tools to MCP clients"
 	@echo "copilot-test - run the copilot + semantic unit tests (no LLM, no BigQuery)"
+	@echo "mcp-test  - run the MCP server unit tests (.venv-mcp; no live client, no BigQuery)"
 	@echo "airflow-start - local Airflow via Astro CLI (Cosmos dbt DAG; needs Docker)"
 	@echo "airflow-stop  - stop the local Airflow"
 	@echo "trim      - drop raw GCS object + raw BQ table, keep marts (zero-storage resting state)"
@@ -67,8 +73,18 @@ api:
 	$(COPILOT_PYTHON) -m uvicorn copilot.api:app --reload --port 8000
 
 # Copilot + semantic unit tests (no LLM, no BigQuery — the model is faked).
+# The MCP test needs Python 3.10+ (its own venv), so it runs under `mcp-test`, not here.
 copilot-test:
-	$(COPILOT_PYTHON) -m pytest tests/ -q
+	$(COPILOT_PYTHON) -m pytest tests/ -q --ignore=tests/test_mcp_server.py
+
+# MCP server (stdio transport) — same governed tools as the copilot, for any MCP client
+# (Claude Desktop, Cursor, ...). Reads the marts via ADC; see docs/mcp.md to wire a client.
+mcp:
+	$(MCP_PYTHON) -m copilot.mcp_server
+
+# MCP server unit tests (its own 3.10+ venv; no live client, no BigQuery).
+mcp-test:
+	$(MCP_PYTHON) -m pytest tests/test_mcp_server.py -q
 
 # Local Airflow (Astronomer) — Cosmos renders each dbt model as its own task.
 # Needs Docker running + the Astro CLI (https://docs.astronomer.io/astro/cli/install-cli).

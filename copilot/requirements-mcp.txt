@@ -1,0 +1,6 @@
+# MCP server (C3.5). Needs Python >=3.10 (the MCP SDK dropped 3.9), so it lives in its
+# own venv, .venv-mcp, separate from the 3.9 copilot/Streamlit venvs.
+#   python3.12 -m venv .venv-mcp && .venv-mcp/bin/pip install -r copilot/requirements-mcp.txt
+mcp==1.28.1
+google-cloud-bigquery==3.27.0
+pytest==8.3.4
