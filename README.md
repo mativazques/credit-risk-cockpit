@@ -4,6 +4,9 @@ A credit-risk and affordability cockpit for a consumer-lending book: vintage def
 curves and cohort heatmaps in BI, plus an agentic copilot that answers risk questions in
 natural language over a governed dbt semantic layer.
 
+**▶ Live demo:** https://credit-risk-cockpit-kpn2dzalva-uc.a.run.app
+_(Cloud Run, scale-to-zero — the first request after a cold start takes a few seconds to wake the container.)_
+
 **Interview story:** this project proves ownership of cohort/vintage credit analytics
 (the day-to-day work) and the differentiator — a governed text-to-metric agent that
 answers "why did the Q3-2021 cohort's default rate lift vs Q2?" by calling typed MCP
@@ -44,9 +47,12 @@ breakdown. Public dataset, stated assumptions, illustrative — not a live book.
 
 ## Screenshots / Demo
 
-[PLACEHOLDER — Phase 1: Streamlit dashboard with vintage curves and cohort heatmap]
+Try it live: **https://credit-risk-cockpit-kpn2dzalva-uc.a.run.app**
 
-[PLACEHOLDER — Phase 3: GIF of copilot answering a cohort question end-to-end]
+[PLACEHOLDER — dashboard: vintage curves + cohort×grade heatmap → `docs/img/dashboard.png`]
+
+[PLACEHOLDER — GIF: the copilot answering "why did Q3-2021 lift vs Q2?" end-to-end,
+showing the governed tools each answer called → `docs/img/copilot.gif`]
 
 ---
 
@@ -66,6 +72,16 @@ Kaggle CSV → GCS (raw) → BigQuery (raw)
 
 dbt models are rendered as individual Airflow tasks via **astronomer-cosmos**, so the
 DAG mirrors the dbt lineage graph — the modern pattern NL/DE data teams expect.
+
+**Deploy shape.** The whole app ships as **one Cloud Run container** running two isolated
+Python venvs: Streamlit pins `protobuf<6` while the copilot's `google-genai` needs `>=6`,
+so they can't share an environment. `deploy/start.sh` runs the copilot (FastAPI + Gemini)
+on an internal `127.0.0.1:8000` and Streamlit on the public `$PORT`; the chat panel talks
+to the copilot over that loopback. Terraform owns only the **serving** layer (Artifact
+Registry, a least-privilege runtime service account with read-only BigQuery access, the
+Gemini secret, the Cloud Run service). The **data** layer (GCS raw + BigQuery datasets) is
+left as bootstrapped by the pipeline, so re-declaring it in IaC can't destroy loaded data.
+The service is `min-instances=0` (scale-to-zero → $0 idle) with `max-instances` capped.
 
 ---
 
@@ -108,10 +124,55 @@ object already exists in GCS and replaces the BigQuery table on load.
 
 **Cost:** GCS 1.4 GB and the BigQuery raw table sit inside the Always-Free tiers → $0/mo.
 
-### Phases 1–4
+### Environments
 
-[PLACEHOLDER — dbt (`dbt run && dbt test`), Airflow (`astro dev start`), Streamlit
-(`streamlit run app/cockpit.py`), Cloud Run deploy.]
+The stack needs **four isolated venvs** because the tools have conflicting pins — each is
+created once and the `Makefile` targets point at it. This is the same protobuf/Python
+split that the single deploy container reproduces.
+
+```bash
+python3   -m venv .venv         && .venv/bin/pip install -r dbt/requirements.txt        # dbt (protobuf>=6)
+python3   -m venv .venv-app     && .venv-app/bin/pip install -r app/requirements.txt     # Streamlit (protobuf<6)
+python3   -m venv .venv-copilot && .venv-copilot/bin/pip install -r copilot/requirements.txt  # FastAPI + Gemini (protobuf>=6)
+python3.12 -m venv .venv-mcp    && .venv-mcp/bin/pip install -r copilot/requirements-mcp.txt   # MCP SDK (needs Python ≥3.10)
+```
+
+### Phase 1–2 — dbt models + semantic layer
+
+```bash
+make dbt-build        # run + test the whole DAG in lineage order (SELECT=<model> to target one)
+make dbt-docs         # generate the dbt docs site
+make airflow-start    # optional: local Airflow (Astro + Cosmos) renders each model as a task
+```
+
+BigQuery auth is via ADC (`gcloud auth application-default login`). `dbt` reads
+`GCP_PROJECT` / `BQ_DBT_DATASET` / `BQ_LOCATION` from `.env`; the marts land in
+`<BQ_DBT_DATASET>_marts`.
+
+### Phase 3 — BI cockpit + copilot
+
+```bash
+make app              # Streamlit cockpit at localhost:8501 (vintage curves, heatmap, chat tab)
+make api              # copilot FastAPI at localhost:8000 (needs GEMINI_API_KEY in .env)
+make mcp              # MCP server (stdio) exposing the same governed tools — see docs/mcp.md
+make copilot-test     # copilot + semantic unit tests (no LLM, no BigQuery)
+make mcp-test         # MCP server unit tests
+```
+
+The chat tab calls the copilot API, so run `make api` alongside `make app` for live Q&A.
+The copilot only spends tokens on **novel, on-topic** questions (on-topic router +
+per-IP/global token caps + answer cache); off-topic questions are refused at zero cost.
+
+### Phase 4 — Container + deploy to Cloud Run
+
+```bash
+make docker-build     # build the single image (two venvs) and run it locally
+make tf-init tf-bootstrap secret-push image-push deploy   # full deploy runbook → prints the public URL
+```
+
+See [terraform/README.md](terraform/README.md) for the per-step deploy runbook and the
+cost breakdown. `make teardown` destroys the serving layer (data kept); `make trim` drops
+the heavy raw layer while keeping the marts (zero-storage resting state).
 
 ---
 
@@ -147,11 +208,23 @@ copilot.
 
 | Phase | Description | State |
 | :--- | :--- | :--- |
-| Phase 0 | Scaffold: repo, .gitignore, ingestion, initial README | In progress |
-| Phase 1 | BI core: dbt models + tests + Airflow/Cosmos + Streamlit dashboard | Planned |
-| Phase 2 | Semantic layer: metrics defined once, shared by BI and agent | Planned |
-| Phase 3 | Agentic copilot: FastAPI + Gemini + MCP tools + NL Q&A | Planned |
-| Phase 4 | Polish and deploy: Cloud Run, Terraform, teardown script, GIF demo | Planned |
+| Phase 0 | Scaffold: repo, .gitignore, ingestion → BigQuery (~2.26M rows) | ✅ Done |
+| Phase 1 | BI core: dbt star schema + tests + Airflow/Cosmos + Streamlit dashboard | ✅ Done |
+| Phase 2 | Semantic layer: 5 governed metrics, defined once, shared by BI and agent | ✅ Done |
+| Phase 3 | Agentic copilot: FastAPI + Gemini function-calling + MCP server + NL Q&A | ✅ Done |
+| Phase 4 | Deploy: Docker + Terraform + **live on Cloud Run**; screenshots/GIF pending | 🟡 In progress |
+
+---
+
+## Documentation
+
+- [BLUEPRINT.md](BLUEPRINT.md) — full design: architecture, business case, rollout ladder.
+- [docs/data-engineering.md](docs/data-engineering.md) — the data-readiness gate (which
+  columns the analytics need, and how the dataset satisfies them).
+- [docs/mcp.md](docs/mcp.md) — wiring the MCP server into a client (Claude Desktop, Cursor).
+- [docs/roadmap.md](docs/roadmap.md) — the incremental checkpoints (the build *story*, not
+  just the result).
+- [terraform/README.md](terraform/README.md) — the Cloud Run deploy runbook + cost notes.
 
 ---
 
