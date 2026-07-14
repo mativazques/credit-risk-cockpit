@@ -6,9 +6,13 @@
 # an internal port, Streamlit on Cloud Run's $PORT, talking to it over localhost.
 FROM python:3.12-slim
 
+# ARROW_DEFAULT_MEMORY_POOL=system: pyarrow's bundled jemalloc/mimalloc pool segfaults
+# under Cloud Run's gVisor sandbox (incomplete madvise emulation) when Streamlit converts
+# a DataFrame to Arrow for st.dataframe. Forcing the system allocator avoids that path.
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    ARROW_DEFAULT_MEMORY_POOL=system \
     COPILOT_API_URL=http://127.0.0.1:8000
 
 WORKDIR /app
