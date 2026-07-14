@@ -14,23 +14,35 @@ Paste this, and set the ceiling to the checkpoint you want to reach:
 
 ```
 Continue the credit-risk-cockpit. Read BLUEPRINT.md, docs/data-engineering.md and
-docs/roadmap.md first. Current state: everything through C2.1 is DONE, committed AND
-pushed to github.com/mativazques/credit-risk-cockpit (main). That means: data in
-BigQuery (raw.lending_club_accepted, ~2.26M rows), full dbt star schema + vintage/cohort
-marts (dataset analytics_marts), a Streamlit BI cockpit, a verified-runnable local
-Airflow/Cosmos DAG, and the governed semantic layer (5 metrics + window contract).
+docs/roadmap.md first. Current state: everything through C4.3 is DONE and the app is
+LIVE on Cloud Run — https://credit-risk-cockpit-kpn2dzalva-uc.a.run.app (project
+credit-risk-cockpit-2026, region us-central1). Data in BigQuery (~2.26M raw rows +
+vintage/cohort marts), Streamlit BI cockpit (3 tabs), governed semantic layer (5
+metrics), the Gemini copilot answering NL questions via governed tools, an MCP server,
+and the Docker + Terraform serving layer. A Cloud Run SIGSEGV crash loop was root-caused
+and fixed (pyarrow segfaulting under gVisor when st.dataframe serializes to Arrow →
+ARROW_DEFAULT_MEMORY_POOL=system baked into the Dockerfile ENV, commit b96f640); the
+live copilot was verified answering end-to-end with zero segfaults.
 
-Environment already set up: two venvs — .venv (dbt: dbt-core 1.9.10 / dbt-bigquery
-1.9.2, protobuf>=6) and .venv-app (Streamlit, protobuf<6); never mix them. Astro CLI
-installed (brew) + Docker for Airflow; `make airflow-start` boots it (dbt runs in an
-in-image venv, Cosmos points at it). `make app` runs Streamlit at localhost:8501.
-Kaggle creds + GCP_* in .env (gitignored); BigQuery auth via ADC.
+Environment: four venvs (.venv dbt / .venv-app Streamlit protobuf<6 / .venv-copilot
+google-genai / .venv-mcp Python 3.12); never mix them. Kaggle creds + GCP_* in .env
+(gitignored); BigQuery auth via ADC. Deploy runbook in the Makefile (tf-init →
+tf-bootstrap → secret-push → image-push → deploy); NOTE `make deploy` runs `terraform
+apply` which prompts for approval — either answer yes or run the apply with
+-auto-approve. Terraform owns the serving layer only; the data layer is left as
+bootstrapped.
 
-The next unchecked checkpoint is C3.2 (Gemini function-calling wiring over the C3.1
-governed tools in copilot/tools.py — AI Studio API key from .env, system prompt, FastAPI
-endpoint). Start there and go UP TO checkpoint <PICK ONE, e.g. C3.3>. Stop at each
-checkpoint for me to review before continuing — do NOT go past the ceiling I set. Small
-commits, English everywhere public, git identity matirvazques@gmail.com.
+The ONLY unchecked checkpoint is C4.4: README visual assets. Capture a hero dashboard
+screenshot → docs/img/dashboard.png (vintage curves + cohort×grade heatmap) and a short
+GIF of the copilot answering "why did Q3-2021 lift vs Q2?" → docs/img/copilot.gif, wire
+them into the README (placeholders already reference those paths), then a short write-up.
+The live URL is stable to record against. Small commits, English everywhere public, git
+identity matirvazques@gmail.com.
+
+After C4.4, the next initiative (separate from this repo) is the portfolio landing/hub:
+Matias buys a domain (assistant can't purchase), then a static landing on GitHub/
+Cloudflare Pages + a Cloud Run domain-mapping so credit-risk.<domain> points at the
+cockpit.
 ```
 
 Natural stopping points (each is a legit portfolio artifact on its own):
@@ -133,8 +145,16 @@ Natural stopping points (each is a legit portfolio artifact on its own):
   processes boot clean in Cloud Run logs). **STOP = public live URL.**
 - [x] **C4.3** `make teardown` → `terraform destroy` of the serving layer (data kept);
   `make trim` drops the raw layer. Both dry-run-verified.
-- [ ] **C4.4** README screenshots (manual) + copilot GIF + short write-up. **STOP =
-  portfolio-ready.**
+- [x] **C4.3b** Cloud Run SIGSEGV crash-loop fixed. Faulthandler pinned it to
+  `st.dataframe` (app/main.py:39) → pyarrow `convert_column` segfaulting under the gVisor
+  sandbox (bundled jemalloc/mimalloc hits madvise/hugepage syscalls gVisor doesn't fully
+  emulate; reproduced only on Cloud Run, never locally under runc). Fix:
+  `ARROW_DEFAULT_MEMORY_POOL=system` in the Dockerfile ENV (commit b96f640), rebuilt +
+  redeployed; live copilot verified answering end-to-end with zero segfaults.
+- [ ] **C4.4** README screenshots + copilot GIF + short write-up. Assets go to
+  `docs/img/dashboard.png` (vintage curves + cohort×grade heatmap) and
+  `docs/img/copilot.gif` (the copilot answering); README already references those paths.
+  Capture against the stable live URL. **STOP = portfolio-ready.**
 
 > *Billing kill-switch (hardening L5) is only needed if the copilot is ever moved from the
 > AI Studio free tier to paid Vertex — see BLUEPRINT Cost & abuse hardening.*
