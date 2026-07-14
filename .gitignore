@@ -67,3 +67,6 @@ astro/.env
 .idea/
 .vscode/
 *.swp
+
+# --- Local-only notes (personal marketing copy, not for the public repo) ---
+docs/linkedin-copy.md

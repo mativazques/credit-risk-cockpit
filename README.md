@@ -12,6 +12,12 @@ _(Cloud Run, scale-to-zero — the first request after a cold start takes a few 
 answers "why did the Q3-2021 cohort's default rate lift vs Q2?" by calling typed MCP
 tools over shared metric definitions, not by writing raw SQL against live tables.
 
+![The copilot decomposing a cohort question, calling governed metric tools, and naming the tool behind every number](docs/img/copilot.gif)
+
+_The differentiator in 10 seconds: ask the copilot why a cohort moved, and it queries the
+same governed metrics as the BI layer and names the tool behind every figure — governed
+text-to-metric, never raw text-to-SQL._
+
 ---
 
 ## What It Does
@@ -28,20 +34,18 @@ tools over shared metric definitions, not by writing raw SQL against live tables
 
 ---
 
-## The Business Case (Illustrative)
+## Why It Matters
 
-Loss-avoidance-as-insurance framing: the cockpit shortens detection lead-time; even a
-few basis points of avoided loss on the book it influences pays for itself. The model
-uses a pilot anchor (one product line, ~€200M receivables) that grows via a deployment
-ladder.
+Credit-risk teams lose money in the gap between when a cohort starts underperforming and
+when someone notices it. This cockpit shortens that detection lead-time: the *same*
+governed metrics power both the standing BI views a risk manager reads every morning and
+an agent that can be **asked**, in plain language, why a cohort moved and what drove it.
+One governed definition, two surfaces — so a diagnosis is never at odds with the dashboard.
 
-**Pilot base case (5 bp detection lift on €200M):** ~€100k/yr hard benefit. Payback
-from partial rollout (€600M influenced, 5 bp): ~€300k hard + soft, payback ≈ 4-5
-months, Year-1 ROI ~2-3x. Worst-case pilot (2 bp, hard only): €40k vs ~€0 demo run
-cost — still positive from year 2 on run cost alone.
-
-See [BLUEPRINT.md](BLUEPRINT.md) for the full rollout ladder, sensitivity table, and TCO
-breakdown. Public dataset, stated assumptions, illustrative — not a live book.
+Because it runs scale-to-zero (~$0 idle), even a few basis points of avoided loss on the
+book it influences more than covers the run cost. The full value model — pilot anchor,
+rollout ladder, sensitivity table and TCO — lives in [BLUEPRINT.md](BLUEPRINT.md), stated
+as an illustrative case on a public dataset, not a live book.
 
 ---
 
@@ -60,12 +64,10 @@ grade over the full 2.26M-loan book, with the governed metric definitions one cl
 
 ![Cohort-by-grade heatmap: default rate across issue quarter and credit grade](docs/img/cohort-heatmap.png)
 
-**Ask the copilot** — a natural-language question answered only from the governed tools
-(`list_metrics`, `query_metric`, `compare_cohorts`). Every answer states the numbers,
-the driver, and which governed tool it called, so each figure is traceable back to a
-single metric definition — no free-form SQL, no invented numbers.
-
-![Copilot comparing two cohorts' default rates and naming the governed tool it called](docs/img/copilot.gif)
+**Ask the copilot** — see the GIF at the top: a natural-language question answered only
+from the governed tools (`list_metrics`, `query_metric`, `compare_cohorts`). Every answer
+states the numbers, the driver, and which governed tool it called, so each figure is
+traceable back to a single metric definition — no free-form SQL, no invented numbers.
 
 ---
 
@@ -86,15 +88,14 @@ Kaggle CSV → GCS (raw) → BigQuery (raw)
 dbt models are rendered as individual Airflow tasks via **astronomer-cosmos**, so the
 DAG mirrors the dbt lineage graph — the modern pattern NL/DE data teams expect.
 
-**Deploy shape.** The whole app ships as **one Cloud Run container** running two isolated
-Python venvs: Streamlit pins `protobuf<6` while the copilot's `google-genai` needs `>=6`,
-so they can't share an environment. `deploy/start.sh` runs the copilot (FastAPI + Gemini)
-on an internal `127.0.0.1:8000` and Streamlit on the public `$PORT`; the chat panel talks
-to the copilot over that loopback. Terraform owns only the **serving** layer (Artifact
-Registry, a least-privilege runtime service account with read-only BigQuery access, the
-Gemini secret, the Cloud Run service). The **data** layer (GCS raw + BigQuery datasets) is
-left as bootstrapped by the pipeline, so re-declaring it in IaC can't destroy loaded data.
-The service is `min-instances=0` (scale-to-zero → $0 idle) with `max-instances` capped.
+**Deploy shape.** The whole app ships as **one scale-to-zero Cloud Run container**
+(`min-instances=0` → $0 idle, `max-instances` capped). Terraform owns only the **serving**
+layer (Artifact Registry, a least-privilege runtime service account with read-only
+BigQuery access, the Gemini secret, the Cloud Run service); the **data** layer is left as
+bootstrapped by the pipeline, so re-declaring it in IaC can't destroy loaded data. (The
+container runs two isolated venvs to resolve a Streamlit/copilot dependency conflict; the
+loopback wiring (C4.1) and the gVisor SIGSEGV fix (C4.3b) are written up in
+[docs/roadmap.md](docs/roadmap.md).)
 
 ---
 
