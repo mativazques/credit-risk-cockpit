@@ -120,11 +120,19 @@ Natural stopping points (each is a legit portfolio artifact on its own):
   preserved). **STOP = MCP differentiator.**
 
 ## Phase 4 — Polish & deploy
-- [ ] **C4.1** Dockerfile; container runs locally.
-- [ ] **C4.2** Terraform `main.tf` (GCS bucket, BQ dataset, Cloud Run, Artifact Registry,
-  IAM); deploy to Cloud Run (`min-instances=0`, `max-instances` capped). **STOP = public
-  live URL.**
-- [ ] **C4.3** Finalize + test `make trim` / `make teardown`.
+- [x] **C4.1** Dockerfile (single image, two isolated venvs — Streamlit protobuf<6 vs
+  copilot protobuf>=6; `deploy/start.sh` runs uvicorn on 127.0.0.1:8000 + Streamlit on
+  `$PORT`) + `.dockerignore`. Built and run locally end-to-end (copilot answered via the
+  internal `/ask`).
+- [x] **C4.2** Terraform owns the **serving** layer only (Artifact Registry, least-priv
+  `cockpit-run` SA + BQ dataViewer/jobUser IAM, the Gemini secret container, the Cloud Run
+  service, `allUsers` invoker); the data layer is left as bootstrapped. `min_instance=0`,
+  `max` capped. Makefile runbook: `tf-init` → `tf-bootstrap` → `secret-push` →
+  `image-push` (linux/amd64) → `deploy`. **DEPLOYED LIVE:**
+  https://credit-risk-cockpit-kpn2dzalva-uc.a.run.app (Streamlit health 200; both
+  processes boot clean in Cloud Run logs). **STOP = public live URL.**
+- [x] **C4.3** `make teardown` → `terraform destroy` of the serving layer (data kept);
+  `make trim` drops the raw layer. Both dry-run-verified.
 - [ ] **C4.4** README screenshots (manual) + copilot GIF + short write-up. **STOP =
   portfolio-ready.**
 
