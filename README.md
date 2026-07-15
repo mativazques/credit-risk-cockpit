@@ -1,16 +1,16 @@
 # Credit-Risk Cockpit
 
-A credit-risk and affordability cockpit for a consumer-lending book: vintage default
-curves and cohort heatmaps in BI, plus an agentic copilot that answers risk questions in
-natural language over a governed dbt semantic layer.
+A credit-risk cockpit for a consumer-lending book: vintage default curves and cohort
+heatmaps in BI (with a DTI affordability lens), plus an agentic copilot that answers risk
+questions in natural language over a governed dbt semantic layer.
 
 **▶ Live demo:** https://credit-risk-cockpit-kpn2dzalva-uc.a.run.app
 _(Cloud Run, scale-to-zero — the first request after a cold start takes a few seconds to wake the container.)_
 
-**Interview story:** this project proves ownership of cohort/vintage credit analytics
-(the day-to-day work) and the differentiator — a governed text-to-metric agent that
-answers "why did the Q3-2021 cohort's default rate lift vs Q2?" by calling typed MCP
-tools over shared metric definitions, not by writing raw SQL against live tables.
+**Why it stands out:** it pairs the day-to-day of cohort/vintage credit analytics with a
+differentiator — a governed text-to-metric agent that answers "why did the Q3-2021
+cohort's default rate lift vs Q2?" by calling typed MCP tools over shared metric
+definitions, not by writing raw SQL against live tables.
 
 ![The copilot decomposing a cohort question, calling governed metric tools, and naming the tool behind every number](docs/img/copilot.gif)
 
@@ -27,7 +27,7 @@ text-to-metric, never raw text-to-SQL._
   manager opens every morning.
 - **Natural-language copilot:** ask "why did Q3-2021 lift?" and the agent decomposes the
   question, queries the same governed metrics as the BI layer, compares cohorts, and
-  narrates the driver. Governed text-to-metric, not raw text-to-SQL.
+  narrates the driver.
 - **Shared semantic layer:** `default_rate`, `cumulative_loss_rate`, `cohort_size`,
   `avg_dti`, `charge_off_rate` — defined once in dbt, consumed identically by the BI
   dashboard and the agentic copilot.
@@ -226,7 +226,7 @@ copilot.
 | Phase 1 | BI core: dbt star schema + tests + Airflow/Cosmos + Streamlit dashboard | ✅ Done |
 | Phase 2 | Semantic layer: 5 governed metrics, defined once, shared by BI and agent | ✅ Done |
 | Phase 3 | Agentic copilot: FastAPI + Gemini function-calling + MCP server + NL Q&A | ✅ Done |
-| Phase 4 | Deploy: Docker + Terraform + **live on Cloud Run**; screenshots/GIF pending | 🟡 In progress |
+| Phase 4 | Deploy: Docker + Terraform + **live on Cloud Run** + README visuals | ✅ Done |
 
 ---
 
