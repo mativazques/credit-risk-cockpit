@@ -18,6 +18,11 @@ _The differentiator in 10 seconds: ask the copilot why a cohort moved, and it qu
 same governed metrics as the BI layer and names the tool behind every figure — governed
 text-to-metric, never raw text-to-SQL._
 
+> **Companion flagship —** [card-acquisition-funnel](https://github.com/mativazques/card-acquisition-funnel)
+> covers the *other half* of the card lifecycle (acquisition → adoption → retention) with a
+> **proactive multi-agent insight layer** and a deterministic data-honesty critic. Same
+> governed-metric DNA, different domain — together they read as one card-lifecycle platform.
+
 ---
 
 ## What It Does
