@@ -20,7 +20,12 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import chat  # noqa: E402
-from queries import load_cohort_default, load_roll_rates, load_vintage_curves  # noqa: E402
+from queries import (  # noqa: E402
+    load_cohort_default,
+    load_roll_rates,
+    load_vintage_backtest,
+    load_vintage_curves,
+)
 from semantic import list_metrics  # noqa: E402
 
 st.set_page_config(page_title="Credit-Risk Cockpit", page_icon=None, layout="wide")
@@ -109,6 +114,50 @@ with vintage_tab:
                 "Charge-off month is approximated from last_pymnt_date (±1–3 months). "
                 "Right-censored points are hidden unless you uncheck the box."
             )
+
+    st.divider()
+    st.subheader("Early warning — 36-MOB backtest")
+    st.caption(
+        "Predicts each cohort's mature (36-MOB) cumulative default from its early "
+        "(12-MOB) rate × a median seasoning multiplier learned on pre-2014 cohorts "
+        "(train) and applied out-of-sample to 2014+ (holdout). A calibrated ratio on "
+        "public, fully-observed cohorts — it demonstrates detection lead time, not a "
+        "production model."
+    )
+    bdf = load_vintage_backtest()
+    holdout = bdf[bdf["split"] == "holdout"]
+    med_abs = float(holdout["backtest_error"].abs().median()) if not holdout.empty else None
+    k1, k2 = st.columns(2)
+    k1.metric(
+        "Seasoning multiplier (train median)",
+        f"{float(bdf['seasoning_multiplier'].iloc[0]):.2f}×" if not bdf.empty else "—",
+    )
+    k2.metric("Median |error| on holdout", _fmt_pct(med_abs))
+    long = bdf.melt(
+        id_vars=["issue_year_quarter", "split"],
+        value_vars=["mature_cdr", "predicted_mature_cdr"],
+        var_name="series",
+        value_name="rate",
+    ).replace(
+        {"series": {"mature_cdr": "Actual 36-MOB", "predicted_mature_cdr": "Predicted 36-MOB"}}
+    )
+    fig_pv = px.line(
+        long, x="issue_year_quarter", y="rate", color="series", line_dash="series",
+        markers=True,
+        labels={"issue_year_quarter": "Issue cohort",
+                "rate": "Cumulative default at 36 MOB", "series": ""},
+        title="Predicted vs actual mature default per cohort",
+    )
+    fig_pv.update_yaxes(tickformat=".0%")
+    st.plotly_chart(fig_pv, use_container_width=True)
+    fig_err = px.bar(
+        bdf, x="issue_year_quarter", y="backtest_error", color="split",
+        labels={"issue_year_quarter": "Issue cohort",
+                "backtest_error": "Predicted − actual", "split": "Split"},
+        title="Backtest error per cohort (positive = over-predicted)",
+    )
+    fig_err.update_yaxes(tickformat=".1%")
+    st.plotly_chart(fig_err, use_container_width=True)
 
 with cohort_tab:
     cdf = load_cohort_default()

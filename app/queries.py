@@ -62,3 +62,21 @@ def load_roll_rates() -> pd.DataFrame:
         order by issue_year_quarter, from_bucket, to_bucket
     """
     return get_client().query(sql).to_dataframe()
+
+
+@st.cache_data(ttl=_TTL)
+def load_vintage_backtest() -> pd.DataFrame:
+    """Early-warning backtest: predicted vs actual 36-MOB default per cohort."""
+    sql = f"""
+        select
+            issue_year_quarter,
+            split,
+            early_cdr,
+            mature_cdr,
+            predicted_mature_cdr,
+            backtest_error,
+            seasoning_multiplier
+        from {marts_table('mart_vintage_backtest')}
+        order by issue_year_quarter
+    """
+    return get_client().query(sql).to_dataframe()
