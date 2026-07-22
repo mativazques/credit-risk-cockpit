@@ -17,9 +17,9 @@ from copilot import tools
 
 # --- declarations (the function-calling contract handed to Gemini in C3.2) ---------
 
-def test_declarations_cover_exactly_the_three_tools():
+def test_declarations_cover_exactly_the_four_tools():
     names = {d["name"] for d in tools.TOOL_DECLARATIONS}
-    assert names == {"list_metrics", "query_metric", "compare_cohorts"}
+    assert names == {"list_metrics", "query_metric", "compare_cohorts", "query_roll_rate"}
 
 
 def test_query_metric_declaration_enumerates_metrics_and_windows_from_the_registry():
@@ -139,3 +139,25 @@ def test_compare_cohorts_tool_normalizes_both_cohorts(monkeypatch):
     monkeypatch.setattr(tools, "_compare_cohorts", _spy)
     tools.compare_cohorts("2015Q1", "2016 q2", "default_rate", "lifetime")
     assert seen == ["2015-Q1", "2016-Q2"]
+
+
+def test_query_roll_rate_bad_bucket_is_error_data_not_exception():
+    from copilot.tools import query_roll_rate
+    out = query_roll_rate("current", "dpd_999")
+    assert out["error"]["code"] == "bucket_unknown"
+
+
+def test_roll_rate_tool_is_declared_and_dispatchable():
+    from copilot.tools import TOOL_DECLARATIONS, TOOLS
+    names = {d["name"] for d in TOOL_DECLARATIONS}
+    assert "query_roll_rate" in names
+    assert "query_roll_rate" in TOOLS
+
+
+def test_roll_rate_declaration_enumerates_buckets():
+    from copilot.tools import TOOL_DECLARATIONS
+    from semantic import ROLL_BUCKETS
+    decl = next(d for d in TOOL_DECLARATIONS if d["name"] == "query_roll_rate")
+    props = decl["parameters"]["properties"]
+    assert props["from_bucket"]["enum"] == list(ROLL_BUCKETS)
+    assert props["to_bucket"]["enum"] == list(ROLL_BUCKETS)

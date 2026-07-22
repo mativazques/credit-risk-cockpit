@@ -15,15 +15,18 @@ from typing import Any, Callable
 
 from semantic import (
     METRICS,
+    ROLL_BUCKETS,
     SemanticError,
     Window,
     compare_cohorts as _compare_cohorts,
     list_metrics as _list_metrics,
     query_metric as _query_metric,
+    roll_rate as _roll_rate,
 )
 
 _METRIC_IDS = sorted(METRICS)
 _WINDOW_VALUES = [w.value for w in Window]
+_ROLL_BUCKETS = list(ROLL_BUCKETS)
 
 
 _COHORT_RE = re.compile(r"^\s*((?:19|20)\d{2})\s*-?\s*[qQ]([1-4])\s*$")
@@ -84,6 +87,18 @@ def compare_cohorts(
         metric_id,
         window,
     )
+
+
+def query_roll_rate(
+    from_bucket: str,
+    to_bucket: str,
+    cohort: str | None = None,
+) -> dict:
+    """Governed delinquency roll rate from one bucket to another, per issue cohort.
+
+    Synthetic-path caveat applies (terminal states real, 30/60/90 walk generated).
+    """
+    return _as_data(_roll_rate, from_bucket, to_bucket, _normalize_cohort(cohort))
 
 
 # --- function-calling contract handed to the model (C3.2) --------------------------
@@ -149,6 +164,35 @@ TOOL_DECLARATIONS: list[dict] = [
             "required": ["cohort_a", "cohort_b", "metric_id"],
         },
     },
+    {
+        "name": "query_roll_rate",
+        "description": (
+            "Delinquency roll rate: the probability of moving from one DPD bucket to "
+            "another next month, per issue cohort. Buckets escalate current -> dpd_30 -> "
+            "dpd_60 -> dpd_90_plus -> charged_off, plus paid. NOTE: transitions are "
+            "synthetic (terminal outcome is real; the 30/60/90 path is generated)."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "from_bucket": {
+                    "type": "string",
+                    "enum": _ROLL_BUCKETS,
+                    "description": "Delinquency bucket this month.",
+                },
+                "to_bucket": {
+                    "type": "string",
+                    "enum": _ROLL_BUCKETS,
+                    "description": "Delinquency bucket next month.",
+                },
+                "cohort": {
+                    "type": "string",
+                    "description": "Optional issue cohort like '2018-Q1'; omit for all cohorts.",
+                },
+            },
+            "required": ["from_bucket", "to_bucket"],
+        },
+    },
 ]
 
 
@@ -158,6 +202,7 @@ TOOLS: dict[str, Callable[..., Any]] = {
     "list_metrics": list_metrics,
     "query_metric": query_metric,
     "compare_cohorts": compare_cohorts,
+    "query_roll_rate": query_roll_rate,
 }
 
 
