@@ -37,6 +37,7 @@ text-to-metric, never raw text-to-SQL._
   `avg_dti`, `charge_off_rate` — defined once in dbt, consumed identically by the BI
   dashboard and the agentic copilot.
 - **Roll-rate matrix (BI + copilot):** monthly delinquency transition probabilities per cohort, over a clearly-labeled synthetic path.
+- **Early-warning backtest (BI + copilot):** each cohort's mature 36-MOB default predicted from its 12-MOB rate, validated out-of-sample on held-out cohorts.
 
 ---
 
@@ -216,6 +217,8 @@ machine is calibrated so every loan's terminal absorbing state (charged-off / fu
 and its approximate charge-off month match the real observed outcome; only the intermediate
 30/60/90-day path between them is generated. Read the roll-rate matrix as an illustrative
 transition structure, not observed servicing data.
+
+**The early-warning backtest is a calibrated ratio, not a model.** The 36-MOB default prediction multiplies each cohort's observed 12-MOB rate by the median mature/early seasoning ratio learned on pre-2014 cohorts (train) and applies it, out-of-sample, to 2014+ cohorts (holdout). Only fully-observed cohorts enter — right-censored cohorts are excluded. It demonstrates detection lead time on public data, not a production-grade forecasting system.
 
 ---
 
