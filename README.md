@@ -73,6 +73,32 @@ grade over the full 2.26M-loan book, with the governed metric definitions one cl
 
 ![Cohort-by-grade heatmap: default rate across issue quarter and credit grade](docs/img/cohort-heatmap.png)
 
+**Roll rates** — delinquency-stage transition matrix (current → 30 → 60 → 90+ →
+charge-off) per cohort. Stage histories are synthesized from each loan's terminal
+outcome under documented rules — the matrix demonstrates the analytics, not observed
+month-to-month payment behaviour.
+
+![Roll-rate transition matrix across delinquency stages, per cohort](docs/img/roll-rates.png)
+
+**Early-warning backtest** — each cohort's mature (36-MOB) default predicted from its
+12-MOB rate × a seasoning multiplier learned on pre-2014 cohorts and applied
+out-of-sample to 2014+. A calibrated ratio on fully-observed public cohorts — it
+demonstrates detection lead time, not a production model.
+
+![Backtest: predicted vs actual 36-MOB default per cohort, train/holdout split](docs/img/backtest.png)
+
+**Affordability stress** — share of each cohort breaching a DTI threshold under a
+hypothetical income shock, computed in closed form over the origination DTI
+distribution. A what-if scenario on origination data, not observed hardship.
+
+![Affordability stress: DTI breach rate per cohort under an income shock](docs/img/affordability.png)
+
+**Business plan** — shape-preserving loss-curve projection under volume growth, mix
+shift and macro stress assumptions, with expected-loss KPIs and a CSV export. A
+scenario tool anchored on mature observed cohorts — not a forecast.
+
+![Business-plan tab: projected loss curve and expected-loss KPIs under a scenario](docs/img/business-plan.png)
+
 **Ask the copilot** — see the GIF at the top: a natural-language question answered only
 from the governed tools (`list_metrics`, `query_metric`, `compare_cohorts`, `query_roll_rate`, `query_affordability`, `project_scenario`). Every answer
 states the numbers, the driver, and which governed tool it called, so each figure is
