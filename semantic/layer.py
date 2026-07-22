@@ -13,6 +13,7 @@ from functools import lru_cache
 from google.cloud import bigquery
 
 from .affordability import build_breach_rate_sql, validate_shock, validate_threshold
+from .projection import build_projection_sql, validate_stress_bp, validate_volume_growth
 from .errors import SemanticError
 from .metrics import METRICS, Metric
 from .roll import ROLL_BUCKETS, build_roll_rate_sql, validate_bucket
@@ -194,4 +195,44 @@ def affordability_breach_rate(
         "threshold": float(threshold),
         "unit": "rate",
         "results": results,
+    }
+
+
+def project_scenario(
+    volume_growth: float,
+    mix_shift_bp: float,
+    macro_stress_bp: float,
+) -> dict:
+    """Business-plan scenario: projected loss curve + P&L summary under the scenario.
+
+    Validates all three parameters BEFORE any BigQuery call. A scenario tool on
+    public-data curves, not a forecast — see semantic/projection.py for the caveats.
+    """
+    validate_volume_growth(volume_growth)
+    validate_stress_bp(mix_shift_bp, "mix_shift_bp")
+    validate_stress_bp(macro_stress_bp, "macro_stress_bp")
+
+    sql = build_projection_sql(mix_shift_bp, macro_stress_bp, _marts_table)
+    rows = list(_client().query(sql).result())
+    if not rows:
+        raise SemanticError(
+            "projection_unavailable", "mart_projection_base returned no rows"
+        )
+
+    anchor_terminal = float(rows[0]["anchor_terminal_loss_rate"])
+    baseline_originated = float(rows[0]["baseline_originated"])
+    total_bp = float(mix_shift_bp) + float(macro_stress_bp)
+    stressed_terminal = max(anchor_terminal + total_bp / 10000.0, 0.0)
+    projected_originated = baseline_originated * (1.0 + float(volume_growth))
+
+    return {
+        "volume_growth": float(volume_growth),
+        "mix_shift_bp": float(mix_shift_bp),
+        "macro_stress_bp": float(macro_stress_bp),
+        "unit": "rate",
+        "baseline_originated": baseline_originated,
+        "projected_originated": projected_originated,
+        "projected_terminal_loss_rate": stressed_terminal,
+        "expected_loss": projected_originated * stressed_terminal,
+        "curve": [{"mob": int(r["mob"]), "value": float(r["value"])} for r in rows],
     }

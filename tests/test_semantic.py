@@ -195,3 +195,18 @@ def test_projection_sql_applies_total_bp_shift():
     assert "50.0 / 10000.0" in sql
     assert "p.d.mart_projection_base" in sql
     assert "greatest(" in sql
+
+
+def test_projection_rejects_bad_params_before_touching_bq():
+    from semantic import project_scenario
+
+    with pytest.raises(SemanticError):
+        project_scenario(5.0, 0, 0)
+    with pytest.raises(SemanticError):
+        project_scenario(0.1, 9999, 0)
+
+
+def test_projection_is_exported_from_semantic_package():
+    import semantic
+
+    assert callable(semantic.project_scenario)
