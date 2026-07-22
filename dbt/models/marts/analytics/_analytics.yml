@@ -116,3 +116,51 @@ models:
             - issue_year_quarter
             - from_bucket
             - to_bucket
+
+  - name: mart_vintage_backtest
+    description: >
+      Early-warning backtest at the issue_year_quarter grain. predicted_mature_cdr =
+      early (12-MOB) cumulative default x a median seasoning multiplier learned on
+      pre-2014 cohorts (train) and applied out-of-sample to 2014+ (holdout).
+      Fully-observed cohorts only; a calibrated ratio, not a production model.
+    columns:
+      - name: issue_year_quarter
+        tests:
+          - not_null
+          - unique
+      - name: split
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['train', 'holdout']
+      - name: early_cdr
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+              inclusive: true
+      - name: mature_cdr
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+              inclusive: true
+      - name: seasoning_multiplier
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+      - name: predicted_mature_cdr
+        tests:
+          - not_null
+      - name: backtest_error
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: -1
+              max_value: 1
+              inclusive: true
