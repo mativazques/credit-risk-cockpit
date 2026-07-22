@@ -192,3 +192,34 @@ models:
           - dbt_utils.accepted_range:
               min_value: 1
               inclusive: true
+
+  - name: mart_projection_base
+    description: >
+      Projection anchor for the business-plan scenario tab: cohort-size-weighted
+      mature (fully-observed) 36-month cumulative loss curve by MOB, with the
+      terminal rate and the latest mature cohort's originated amount denormalized
+      onto every row. 36 rows.
+    columns:
+      - name: mob
+        tests:
+          - unique
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 36
+              inclusive: true
+      - name: anchor_cumulative_loss_rate
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+              inclusive: true
+      - name: anchor_terminal_loss_rate
+        tests:
+          - not_null
+      - name: baseline_originated
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
