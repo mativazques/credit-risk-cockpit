@@ -165,3 +165,33 @@ def test_affordability_is_exported_from_semantic_package():
     import semantic
 
     assert callable(semantic.affordability_breach_rate)
+
+
+# --- business-plan projection (Phase D) --------------------------------------------
+from semantic.projection import (
+    build_projection_sql,
+    validate_stress_bp,
+    validate_volume_growth,
+)
+
+
+def test_volume_growth_outside_band_is_structured_error():
+    with pytest.raises(SemanticError) as e:
+        validate_volume_growth(1.5)
+    assert e.value.code == "volume_growth_invalid"
+    with pytest.raises(SemanticError):
+        validate_volume_growth(True)
+
+
+def test_stress_bp_outside_band_is_structured_error():
+    with pytest.raises(SemanticError) as e:
+        validate_stress_bp(900, "macro_stress_bp")
+    assert e.value.code == "stress_bp_invalid"
+    assert "macro_stress_bp" in e.value.message
+
+
+def test_projection_sql_applies_total_bp_shift():
+    sql = build_projection_sql(20, 30, lambda n: f"p.d.{n}")
+    assert "50.0 / 10000.0" in sql
+    assert "p.d.mart_projection_base" in sql
+    assert "greatest(" in sql
