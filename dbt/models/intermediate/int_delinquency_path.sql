@@ -22,10 +22,16 @@ with loan as (
         fully_paid_flag,
         is_right_censored,
         observed_mob,
-        -- charge-off MOB, approximated exactly as fct_loan_month does
+        -- charge-off MOB, approximated as fct_loan_month does, then CAPPED at
+        -- observed_mob: the approximation is +/-1-3 months, and capping guarantees every
+        -- charged-off loan's path really absorbs to 'charged_off' inside its observed
+        -- window (terminal state = real outcome, the model's core promise).
         case
             when default_flag = 1
-            then greatest(1, date_diff(charge_off_date_approx, issue_date, month))
+            then least(
+                greatest(1, date_diff(charge_off_date_approx, issue_date, month)),
+                observed_mob
+            )
         end as charge_off_mob
     from {{ ref('fct_loan') }}
 
@@ -37,8 +43,10 @@ spine as (
         loan.*,
         mob
     from loan,
-        -- only OBSERVED months: never fabricate a path beyond the snapshot
-        unnest(generate_array(1, greatest(loan.observed_mob, 1))) as mob
+        -- only OBSERVED months: never fabricate a path beyond the snapshot. A loan with
+        -- observed_mob < 1 (issued at/after the snapshot month) yields an EMPTY array ->
+        -- zero rows, not a fabricated month.
+        unnest(generate_array(1, loan.observed_mob)) as mob
 
 ),
 
