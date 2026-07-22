@@ -36,6 +36,7 @@ text-to-metric, never raw text-to-SQL._
 - **Shared semantic layer:** `default_rate`, `cumulative_loss_rate`, `cohort_size`,
   `avg_dti`, `charge_off_rate` — defined once in dbt, consumed identically by the BI
   dashboard and the agentic copilot.
+- **Roll-rate matrix (BI + copilot):** monthly delinquency transition probabilities per cohort, over a clearly-labeled synthetic path.
 
 ---
 
@@ -208,6 +209,13 @@ right-censored at the snapshot date and labeled as such.
 
 No proprietary data. Raw CSV not committed to the repo (requires a free Kaggle account
 to download). All numbers illustrative with stated assumptions.
+
+**Roll rates are computed over a synthetic delinquency path.** The public LendingClub
+snapshot carries only each loan's terminal status, not a monthly DPD history. The state
+machine is calibrated so every loan's terminal absorbing state (charged-off / fully-paid)
+and its approximate charge-off month match the real observed outcome; only the intermediate
+30/60/90-day path between them is generated. Read the roll-rate matrix as an illustrative
+transition structure, not observed servicing data.
 
 ---
 
