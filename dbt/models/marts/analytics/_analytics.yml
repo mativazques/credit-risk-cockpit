@@ -80,3 +80,39 @@ models:
           combination_of_columns:
             - issue_year_quarter
             - grade
+
+  - name: mart_roll_rates
+    description: >
+      Delinquency roll rates — P(to_bucket next month | from_bucket this month) by issue
+      cohort, over the SYNTHETIC delinquency path (terminal states real, 30/60/90 walk
+      generated). One row per (issue_year_quarter x from_bucket x to_bucket).
+    columns:
+      - name: issue_year_quarter
+        description: Origination cohort (e.g. 2016-Q2).
+        data_tests: [not_null]
+      - name: from_bucket
+        description: Delinquency bucket this month.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: [current, dpd_30, dpd_60, dpd_90_plus, charged_off, paid]
+      - name: to_bucket
+        description: Delinquency bucket next month.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: [current, dpd_30, dpd_60, dpd_90_plus, charged_off, paid]
+      - name: roll_rate
+        description: n_transition / n_from — a monthly transition probability.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+              inclusive: true
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - issue_year_quarter
+            - from_bucket
+            - to_bucket
