@@ -27,7 +27,7 @@ from queries import (  # noqa: E402
     load_vintage_backtest,
     load_vintage_curves,
 )
-from semantic import affordability_breach_rate, list_metrics  # noqa: E402
+from semantic import affordability_breach_rate, list_metrics, project_scenario  # noqa: E402
 
 st.set_page_config(page_title="Credit-Risk Cockpit", page_icon=None, layout="wide")
 
@@ -79,9 +79,15 @@ def _breach_curve(shock: float, threshold: float) -> "pd.DataFrame":
     return pd.DataFrame(res)
 
 
-vintage_tab, cohort_tab, roll_tab, afford_tab, chat_tab = st.tabs(
+@st.cache_data(ttl=3600)
+def _scenario(volume_growth: float, mix_shift_bp: float, macro_stress_bp: float) -> dict:
+    """Governed projection via the semantic layer (same definition the copilot uses)."""
+    return project_scenario(volume_growth, mix_shift_bp, macro_stress_bp)
+
+
+vintage_tab, cohort_tab, roll_tab, afford_tab, plan_tab, chat_tab = st.tabs(
     ["Vintage curves", "Cohort heatmap", "Roll rates", "Affordability stress",
-     "Ask the copilot"]
+     "Business plan", "Ask the copilot"]
 )
 
 with vintage_tab:
@@ -268,6 +274,65 @@ with afford_tab:
     st.caption(
         "Bucket resolution is 1 DTI point; the bucket containing the stressed cutoff "
         "counts as breaching (≤1pp conservative)."
+    )
+
+with plan_tab:
+    st.subheader("Business plan — scenario projection")
+    st.caption(
+        "Projects the mature (fully-observed) 36-month cumulative loss curve under a "
+        "scenario: volume growth scales originations; the mix-shift and macro stresses "
+        "shift the terminal loss rate in basis points, scaling the curve "
+        "shape-preservingly. **A hypothetical scenario tool on public-data curves, not "
+        "a forecast of a live book.**"
+    )
+    left, right = st.columns([1, 3])
+    with left:
+        growth_pct = st.slider("Origination volume growth (%)", -50, 100, 10, step=5)
+        mix_bp = st.slider("Credit-mix shift (bp on terminal loss)", -200, 200, 0, step=10)
+        macro_bp = st.slider("Macro stress (bp on terminal loss)", -200, 200, 50, step=10)
+
+    scenario = _scenario(growth_pct / 100.0, float(mix_bp), float(macro_bp))
+    baseline = _scenario(0.0, 0.0, 0.0)
+
+    base_df = pd.DataFrame(baseline["curve"]).rename(columns={"value": "Baseline"})
+    scen_df = pd.DataFrame(scenario["curve"]).rename(columns={"value": "Scenario"})
+    with right:
+        curve = base_df.merge(scen_df, on="mob").melt(
+            id_vars="mob", var_name="series", value_name="rate"
+        )
+        fig = px.line(
+            curve, x="mob", y="rate", color="series",
+            labels={"mob": "Month on book", "rate": "Cumulative loss rate",
+                    "series": ""},
+            title="Projected cumulative loss curve — baseline vs scenario",
+        )
+        fig.update_yaxes(tickformat=".1%")
+        st.plotly_chart(fig, use_container_width=True)
+
+    k1, k2, k3 = st.columns(3)
+    k1.metric(
+        "Projected origination",
+        f"${scenario['projected_originated']:,.0f}",
+        delta=f"{growth_pct:+d}% vs latest mature cohort",
+    )
+    k2.metric(
+        "Terminal loss rate",
+        _fmt_pct(scenario["projected_terminal_loss_rate"]),
+        delta=f"{mix_bp + macro_bp:+d} bp",
+        delta_color="inverse",
+    )
+    k3.metric("Expected lifetime loss", f"${scenario['expected_loss']:,.0f}")
+
+    st.download_button(
+        "Download scenario table (CSV)",
+        base_df.merge(scen_df, on="mob").to_csv(index=False).encode("utf-8"),
+        file_name="business_plan_scenario.csv",
+        mime="text/csv",
+    )
+    st.caption(
+        "Anchor: cohort-size-weighted mature 36-month vintages; volume anchor = the "
+        "most recent fully-observed cohort's originated amount. Assumes the historical "
+        "curve shape holds and the bp stress is linear at the terminal."
     )
 
 with chat_tab:
