@@ -47,3 +47,18 @@ def load_cohort_default() -> pd.DataFrame:
         order by issue_year_quarter, grade
     """
     return get_client().query(sql).to_dataframe()
+
+
+@st.cache_data(ttl=_TTL)
+def load_roll_rates() -> pd.DataFrame:
+    """Per-cohort delinquency roll-rate matrix (synthetic path — see the mart's docstring)."""
+    sql = f"""
+        select
+            issue_year_quarter,
+            from_bucket,
+            to_bucket,
+            roll_rate
+        from {marts_table('mart_roll_rates')}
+        order by issue_year_quarter, from_bucket, to_bucket
+    """
+    return get_client().query(sql).to_dataframe()

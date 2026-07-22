@@ -20,7 +20,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import chat  # noqa: E402
-from queries import load_cohort_default, load_vintage_curves  # noqa: E402
+from queries import load_cohort_default, load_roll_rates, load_vintage_curves  # noqa: E402
 from semantic import list_metrics  # noqa: E402
 
 st.set_page_config(page_title="Credit-Risk Cockpit", page_icon=None, layout="wide")
@@ -66,8 +66,8 @@ def _fmt_pct(x: float) -> str:
     return f"{x:.1%}" if x is not None else "—"
 
 
-vintage_tab, cohort_tab, chat_tab = st.tabs(
-    ["Vintage curves", "Cohort heatmap", "Ask the copilot"]
+vintage_tab, cohort_tab, roll_tab, chat_tab = st.tabs(
+    ["Vintage curves", "Cohort heatmap", "Roll rates", "Ask the copilot"]
 )
 
 with vintage_tab:
@@ -145,6 +145,34 @@ with cohort_tab:
         "Recent cohorts (2017–2018) are still seasoning at the snapshot — their rates "
         "are floors, not final (see 'Share still current')."
     )
+
+_BUCKET_ORDER = ["current", "dpd_30", "dpd_60", "dpd_90_plus", "charged_off", "paid"]
+
+with roll_tab:
+    rdf = load_roll_rates()
+    st.subheader("Delinquency roll rates")
+    st.caption(
+        "Probability of moving from one DPD bucket to another the next month, per cohort. "
+        "**Transitions are synthetic** — LendingClub carries only each loan's terminal "
+        "status, so the 30/60/90 path is generated while the terminal state (charged-off / "
+        "paid) matches the real observed outcome. Read as an illustrative transition "
+        "structure, not observed servicing data."
+    )
+    cohort = st.selectbox("Issue cohort", sorted(rdf["issue_year_quarter"].unique()))
+    view = rdf[rdf["issue_year_quarter"] == cohort]
+    pivot = (
+        view.pivot(index="from_bucket", columns="to_bucket", values="roll_rate")
+        .reindex(index=_BUCKET_ORDER, columns=_BUCKET_ORDER)
+    )
+    fig = px.imshow(
+        pivot,
+        labels={"x": "To bucket (next month)", "y": "From bucket (this month)",
+                "color": "Roll rate"},
+        color_continuous_scale="Reds", aspect="auto", text_auto=".1%",
+        title=f"Monthly delinquency transition matrix — {cohort}",
+    )
+    fig.update_coloraxes(colorbar_tickformat=".0%")
+    st.plotly_chart(fig, use_container_width=True)
 
 with chat_tab:
     chat.render()
