@@ -12,6 +12,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pandas as pd
 import plotly.express as px
 import streamlit as st
 
@@ -26,7 +27,7 @@ from queries import (  # noqa: E402
     load_vintage_backtest,
     load_vintage_curves,
 )
-from semantic import list_metrics  # noqa: E402
+from semantic import affordability_breach_rate, list_metrics  # noqa: E402
 
 st.set_page_config(page_title="Credit-Risk Cockpit", page_icon=None, layout="wide")
 
@@ -71,8 +72,16 @@ def _fmt_pct(x: float) -> str:
     return f"{x:.1%}" if x is not None else "—"
 
 
-vintage_tab, cohort_tab, roll_tab, chat_tab = st.tabs(
-    ["Vintage curves", "Cohort heatmap", "Roll rates", "Ask the copilot"]
+@st.cache_data(ttl=3600)
+def _breach_curve(shock: float, threshold: float) -> "pd.DataFrame":
+    """Governed breach rate per cohort — same semantic function the copilot uses."""
+    res = affordability_breach_rate(shock, threshold)["results"]
+    return pd.DataFrame(res)
+
+
+vintage_tab, cohort_tab, roll_tab, afford_tab, chat_tab = st.tabs(
+    ["Vintage curves", "Cohort heatmap", "Roll rates", "Affordability stress",
+     "Ask the copilot"]
 )
 
 with vintage_tab:
@@ -223,6 +232,43 @@ with roll_tab:
     )
     fig.update_coloraxes(colorbar_tickformat=".0%")
     st.plotly_chart(fig, use_container_width=True)
+
+with afford_tab:
+    st.subheader("Affordability stress — hypothetical income shock")
+    st.caption(
+        "Share of each issue cohort whose debt-to-income breaches the threshold when "
+        "income drops by the chosen shock (debt held fixed: stressed DTI = "
+        "DTI / (1 − shock)). **The shock is a hypothetical scenario** on "
+        "origination-time DTI — an illustrative affordability stress on the public "
+        "LendingClub book, not a live affordability model."
+    )
+    c1, c2 = st.columns(2)
+    with c1:
+        shock_pct = st.slider("Income shock (%)", min_value=0, max_value=30, value=10, step=1)
+    with c2:
+        threshold = st.number_input(
+            "DTI breach threshold (percent points)", min_value=1.0, max_value=100.0,
+            value=40.0, step=1.0,
+        )
+    shock = shock_pct / 100.0
+    base = _breach_curve(0.0, float(threshold)).rename(columns={"value": "Baseline (no shock)"})
+    stressed = _breach_curve(shock, float(threshold)).rename(
+        columns={"value": f"Shock {shock_pct}%"}
+    )
+    curve = base.merge(stressed, on="cohort")
+    long = curve.melt(id_vars="cohort", var_name="scenario", value_name="breach_rate")
+    fig = px.line(
+        long, x="cohort", y="breach_rate", color="scenario", markers=True,
+        labels={"cohort": "Issue cohort", "breach_rate": f"Share with stressed DTI > {threshold:.0f}",
+                "scenario": ""},
+        title="DTI breach rate per cohort — baseline vs stressed",
+    )
+    fig.update_yaxes(tickformat=".0%")
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "Bucket resolution is 1 DTI point; the bucket containing the stressed cutoff "
+        "counts as breaching (≤1pp conservative)."
+    )
 
 with chat_tab:
     chat.render()
