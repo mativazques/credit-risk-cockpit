@@ -17,15 +17,16 @@ from copilot import tools
 
 # --- declarations (the function-calling contract handed to Gemini in C3.2) ---------
 
-def test_declarations_cover_exactly_the_five_tools():
-    names = {d["name"] for d in tools.TOOL_DECLARATIONS}
-    assert names == {
+def test_declarations_cover_exactly_the_six_tools():
+    assert {d["name"] for d in tools.TOOL_DECLARATIONS} == {
         "list_metrics",
         "query_metric",
         "compare_cohorts",
         "query_roll_rate",
         "query_affordability",
+        "project_scenario",
     }
+    assert set(tools.TOOLS) == {d["name"] for d in tools.TOOL_DECLARATIONS}
 
 
 def test_query_metric_declaration_enumerates_metrics_and_windows_from_the_registry():
@@ -192,3 +193,33 @@ def test_query_affordability_normalizes_cohort_and_delegates(monkeypatch):
 def test_dispatch_routes_query_affordability():
     result = tools.dispatch("query_affordability", {"shock": -1, "threshold": 40})
     assert result["error"]["code"] == "shock_invalid"
+
+
+# --- project_scenario (Phase D) ----------------------------------------------------
+
+
+def test_project_scenario_bad_volume_growth_is_error_data():
+    result = tools.project_scenario(
+        volume_growth=5.0, mix_shift_bp=0, macro_stress_bp=0
+    )
+    assert result["error"]["code"] == "volume_growth_invalid"
+
+
+def test_project_scenario_delegates_all_three_params(monkeypatch):
+    seen = {}
+
+    def fake(volume_growth, mix_shift_bp, macro_stress_bp):
+        seen["args"] = (volume_growth, mix_shift_bp, macro_stress_bp)
+        return {"ok": True}
+
+    monkeypatch.setattr(tools, "_project_scenario", fake)
+    tools.project_scenario(volume_growth=0.1, mix_shift_bp=20, macro_stress_bp=30)
+    assert seen["args"] == (0.1, 20, 30)
+
+
+def test_dispatch_routes_project_scenario():
+    result = tools.dispatch(
+        "project_scenario",
+        {"volume_growth": 5, "mix_shift_bp": 0, "macro_stress_bp": 0},
+    )
+    assert result["error"]["code"] == "volume_growth_invalid"

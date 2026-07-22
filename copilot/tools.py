@@ -21,6 +21,7 @@ from semantic import (
     affordability_breach_rate as _affordability_breach_rate,
     compare_cohorts as _compare_cohorts,
     list_metrics as _list_metrics,
+    project_scenario as _project_scenario,
     query_metric as _query_metric,
     roll_rate as _roll_rate,
 )
@@ -115,6 +116,19 @@ def query_affordability(
     return _as_data(
         _affordability_breach_rate, shock, threshold, _normalize_cohort(cohort)
     )
+
+
+def project_scenario(
+    volume_growth: float,
+    mix_shift_bp: float,
+    macro_stress_bp: float,
+) -> dict:
+    """Business-plan projection of the mature 36-month loss curve under a scenario.
+
+    Volume growth scales originations; the bp stresses shift the terminal loss rate
+    (shape-preserving curve scaling). A HYPOTHETICAL scenario, not a forecast.
+    """
+    return _as_data(_project_scenario, volume_growth, mix_shift_bp, macro_stress_bp)
 
 
 # --- function-calling contract handed to the model (C3.2) --------------------------
@@ -236,6 +250,42 @@ TOOL_DECLARATIONS: list[dict] = [
             "required": ["shock", "threshold"],
         },
     },
+    {
+        "name": "project_scenario",
+        "description": (
+            "Business-plan projection (HYPOTHETICAL scenario, not a forecast — always "
+            "caveat that): scales the mature 36-month cumulative loss curve. Returns "
+            "the projected curve plus baseline/projected originated amount, the "
+            "stressed terminal loss rate, and expected lifetime loss."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "volume_growth": {
+                    "type": "number",
+                    "description": (
+                        "Origination volume growth as a fraction in [-0.5, 1.0]; "
+                        "e.g. 0.10 = +10% volume."
+                    ),
+                },
+                "mix_shift_bp": {
+                    "type": "number",
+                    "description": (
+                        "Credit-mix shift on the terminal loss rate, basis points in "
+                        "[-500, 500]."
+                    ),
+                },
+                "macro_stress_bp": {
+                    "type": "number",
+                    "description": (
+                        "Macro stress on the terminal loss rate, basis points in "
+                        "[-500, 500]."
+                    ),
+                },
+            },
+            "required": ["volume_growth", "mix_shift_bp", "macro_stress_bp"],
+        },
+    },
 ]
 
 
@@ -247,6 +297,7 @@ TOOLS: dict[str, Callable[..., Any]] = {
     "compare_cohorts": compare_cohorts,
     "query_roll_rate": query_roll_rate,
     "query_affordability": query_affordability,
+    "project_scenario": project_scenario,
 }
 
 
