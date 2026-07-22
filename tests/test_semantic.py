@@ -83,3 +83,15 @@ def test_roll_rate_sql_targets_the_mart_and_filters_both_buckets():
     assert "from_bucket = 'current'" in sql
     assert "to_bucket = 'dpd_30'" in sql
     assert "issue_year_quarter" in sql and "value" in sql
+
+
+def test_roll_rate_rejects_unknown_bucket_before_touching_bq():
+    from semantic import roll_rate
+    with pytest.raises(SemanticError) as exc:
+        roll_rate("current", "dpd_999")
+    assert exc.value.code == "bucket_unknown"
+
+
+def test_roll_rate_is_exported_from_semantic_package():
+    import semantic
+    assert hasattr(semantic, "roll_rate")

@@ -14,6 +14,7 @@ from google.cloud import bigquery
 
 from .errors import SemanticError
 from .metrics import METRICS, Metric
+from .roll import ROLL_BUCKETS, build_roll_rate_sql, validate_bucket
 from .windows import Window, parse_window
 
 _DBT_DATASET = os.environ.get("BQ_DBT_DATASET", "analytics")
@@ -119,4 +120,41 @@ def compare_cohorts(
         "cohort_a": {"cohort": cohort_a, "value": a},
         "cohort_b": {"cohort": cohort_b, "value": b},
         "difference": None if a is None or b is None else a - b,
+    }
+
+
+def roll_rate(
+    from_bucket: str,
+    to_bucket: str,
+    cohort: str | None = None,
+) -> dict:
+    """Governed delinquency roll rate from one bucket to another, per issue cohort.
+
+    Validates both buckets against the closed vocabulary BEFORE any BigQuery call, so a bad
+    bucket is a structured SemanticError, never a SQL error. Synthetic-path caveat applies.
+    """
+    validate_bucket(from_bucket)
+    validate_bucket(to_bucket)
+
+    sql = build_roll_rate_sql(from_bucket, to_bucket, _marts_table)
+    rows = {r["issue_year_quarter"]: r["value"] for r in _client().query(sql).result()}
+
+    if cohort is not None:
+        if cohort not in rows:
+            raise SemanticError(
+                "cohort_unknown",
+                f"no roll rate for cohort '{cohort}' "
+                f"({from_bucket} -> {to_bucket}); the transition may not occur in it",
+            )
+        results = [{"cohort": cohort, "value": rows[cohort]}]
+    else:
+        results = [
+            {"cohort": c, "value": rows[c]} for c in sorted(rows) if rows[c] is not None
+        ]
+
+    return {
+        "from_bucket": from_bucket,
+        "to_bucket": to_bucket,
+        "unit": "rate",
+        "results": results,
     }
