@@ -148,3 +148,20 @@ def test_breach_sql_applies_the_closed_form_cutoff():
     assert "mart_dti_histogram" in sql
     assert "36.0" in sql
     assert "issue_year_quarter" in sql and "value" in sql
+
+
+def test_affordability_rejects_bad_params_before_touching_bq():
+    from semantic import affordability_breach_rate
+
+    with pytest.raises(SemanticError) as exc:
+        affordability_breach_rate(1.2, 40.0)
+    assert exc.value.code == "shock_invalid"
+    with pytest.raises(SemanticError) as exc:
+        affordability_breach_rate(0.1, 0)
+    assert exc.value.code == "threshold_invalid"
+
+
+def test_affordability_is_exported_from_semantic_package():
+    import semantic
+
+    assert callable(semantic.affordability_breach_rate)

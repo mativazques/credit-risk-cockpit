@@ -12,6 +12,7 @@ from functools import lru_cache
 
 from google.cloud import bigquery
 
+from .affordability import build_breach_rate_sql, validate_shock, validate_threshold
 from .errors import SemanticError
 from .metrics import METRICS, Metric
 from .roll import ROLL_BUCKETS, build_roll_rate_sql, validate_bucket
@@ -155,6 +156,42 @@ def roll_rate(
     return {
         "from_bucket": from_bucket,
         "to_bucket": to_bucket,
+        "unit": "rate",
+        "results": results,
+    }
+
+
+def affordability_breach_rate(
+    shock: float,
+    threshold: float,
+    cohort: str | None = None,
+) -> dict:
+    """Share of each cohort whose stressed DTI (dti / (1 - shock)) exceeds `threshold`.
+
+    Validates both parameters BEFORE any BigQuery call. The shock is a hypothetical
+    scenario on origination-time dti — see semantic/affordability.py for the caveats.
+    """
+    validate_shock(shock)
+    validate_threshold(threshold)
+
+    sql = build_breach_rate_sql(shock, threshold, _marts_table)
+    rows = {r["issue_year_quarter"]: r["value"] for r in _client().query(sql).result()}
+
+    if cohort is not None:
+        if cohort not in rows:
+            raise SemanticError(
+                "cohort_unknown",
+                f"no DTI histogram for cohort '{cohort}'",
+            )
+        results = [{"cohort": cohort, "value": rows[cohort]}]
+    else:
+        results = [
+            {"cohort": c, "value": rows[c]} for c in sorted(rows) if rows[c] is not None
+        ]
+
+    return {
+        "shock": float(shock),
+        "threshold": float(threshold),
         "unit": "rate",
         "results": results,
     }
