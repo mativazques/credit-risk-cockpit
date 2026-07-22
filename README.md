@@ -39,6 +39,7 @@ text-to-metric, never raw text-to-SQL._
 - **Roll-rate matrix (BI + copilot):** monthly delinquency transition probabilities per cohort, over a clearly-labeled synthetic path.
 - **Early-warning backtest (BI + copilot):** each cohort's mature 36-MOB default predicted from its 12-MOB rate, validated out-of-sample on held-out cohorts.
 - **Affordability stress (BI + copilot):** the share of each cohort breaching a DTI threshold under a hypothetical income shock, computed closed-form on the book's own origination DTI.
+- **Business-plan projection** — scenario sliders (volume growth, credit-mix shift, macro stress in bp) over the mature 36-month loss curve, with a P&L-style summary (projected origination, terminal loss rate, expected loss) and a downloadable scenario table — the "projecting business curves with stakeholders" view.
 
 ---
 
@@ -222,6 +223,8 @@ transition structure, not observed servicing data.
 **The early-warning backtest is a calibrated ratio, not a model.** The 36-MOB default prediction multiplies each cohort's observed 12-MOB rate by the median mature/early seasoning ratio learned on pre-2014 cohorts (train) and applies it, out-of-sample, to 2014+ cohorts (holdout). Only fully-observed cohorts enter — right-censored cohorts are excluded. It demonstrates detection lead time on public data, not a production-grade forecasting system.
 
 **The affordability stress is a hypothetical scenario, not observed hardship.** The income shock rescales each borrower's origination-time DTI (debt held fixed in nominal terms: stressed DTI = DTI / (1 − shock)); nobody's income was actually observed to fall. DTI is LendingClub's origination measure in percent points, bucketed at 1-point resolution (the cutoff bucket counts as breaching, a ≤1pp conservative overstatement). Read it as an illustrative affordability lens on the public book, not a live affordability model.
+
+**The business-plan projection is a scenario tool, not a forecast.** It scales the historical mature 36-month loss curve (public LendingClub vintages, fully observed at the 2019-03 snapshot): volume growth scales originations, and the basis-point stresses shift the terminal loss rate linearly with shape-preserving curve scaling. It models no macro state and no live book.
 
 ---
 
