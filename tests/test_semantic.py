@@ -59,3 +59,27 @@ def test_default_rate_lifetime_uses_cohort_mart():
     m = METRICS["default_rate"]
     sql = m.build_sql(Window.LIFETIME, lambda n: f"`p.d.{n}`")
     assert "mart_cohort_default" in sql
+
+
+# --- roll rates (Phase A) ---------------------------------------------------------
+from semantic.roll import ROLL_BUCKETS, build_roll_rate_sql, validate_bucket
+
+
+def test_roll_buckets_are_the_canonical_six():
+    assert ROLL_BUCKETS == (
+        "current", "dpd_30", "dpd_60", "dpd_90_plus", "charged_off", "paid",
+    )
+
+
+def test_validate_bucket_rejects_unknown():
+    with pytest.raises(SemanticError) as exc:
+        validate_bucket("dpd_120")
+    assert exc.value.code == "bucket_unknown"
+
+
+def test_roll_rate_sql_targets_the_mart_and_filters_both_buckets():
+    sql = build_roll_rate_sql("current", "dpd_30", lambda n: f"`p.d.{n}`")
+    assert "mart_roll_rates" in sql
+    assert "from_bucket = 'current'" in sql
+    assert "to_bucket = 'dpd_30'" in sql
+    assert "issue_year_quarter" in sql and "value" in sql
