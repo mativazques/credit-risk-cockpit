@@ -114,3 +114,37 @@ def test_backtest_metrics_are_mob_36_only():
         with pytest.raises(SemanticError) as exc:
             query_metric(metric_id, window="lifetime")
         assert exc.value.code == "window_unsupported"
+
+
+# --- affordability stress (Phase C) -----------------------------------------------
+from semantic.affordability import (
+    build_breach_rate_sql,
+    validate_shock,
+    validate_threshold,
+)
+
+
+def test_shock_outside_unit_interval_is_structured_error():
+    for bad in (-0.1, 1.0, 1.5, "0.1", None, True):
+        with pytest.raises(SemanticError) as exc:
+            validate_shock(bad)
+        assert exc.value.code == "shock_invalid"
+    validate_shock(0)      # baseline (no shock) is legal
+    validate_shock(0.30)   # 30% income drop is legal
+
+
+def test_threshold_outside_percent_scale_is_structured_error():
+    for bad in (0, -5, 101, "40", None, False):
+        with pytest.raises(SemanticError) as exc:
+            validate_threshold(bad)
+        assert exc.value.code == "threshold_invalid"
+    validate_threshold(40)     # DTI 40 percent points is legal
+    validate_threshold(100)    # inclusive upper bound
+
+
+def test_breach_sql_applies_the_closed_form_cutoff():
+    # threshold 40, shock 10% -> cutoff = 40 * (1 - 0.10) = 36.0 on the original dti
+    sql = build_breach_rate_sql(0.10, 40.0, lambda n: f"`p.d.{n}`")
+    assert "mart_dti_histogram" in sql
+    assert "36.0" in sql
+    assert "issue_year_quarter" in sql and "value" in sql
