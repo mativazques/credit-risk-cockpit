@@ -17,9 +17,15 @@ from copilot import tools
 
 # --- declarations (the function-calling contract handed to Gemini in C3.2) ---------
 
-def test_declarations_cover_exactly_the_four_tools():
+def test_declarations_cover_exactly_the_five_tools():
     names = {d["name"] for d in tools.TOOL_DECLARATIONS}
-    assert names == {"list_metrics", "query_metric", "compare_cohorts", "query_roll_rate"}
+    assert names == {
+        "list_metrics",
+        "query_metric",
+        "compare_cohorts",
+        "query_roll_rate",
+        "query_affordability",
+    }
 
 
 def test_query_metric_declaration_enumerates_metrics_and_windows_from_the_registry():
@@ -161,3 +167,28 @@ def test_roll_rate_declaration_enumerates_buckets():
     props = decl["parameters"]["properties"]
     assert props["from_bucket"]["enum"] == list(ROLL_BUCKETS)
     assert props["to_bucket"]["enum"] == list(ROLL_BUCKETS)
+
+
+# --- query_affordability (Phase C) -------------------------------------------------
+
+
+def test_query_affordability_bad_shock_is_error_data():
+    result = tools.query_affordability(shock=1.5, threshold=40.0)
+    assert result["error"]["code"] == "shock_invalid"
+
+
+def test_query_affordability_normalizes_cohort_and_delegates(monkeypatch):
+    seen = {}
+
+    def fake(shock, threshold, cohort=None):
+        seen.update(shock=shock, threshold=threshold, cohort=cohort)
+        return {"unit": "rate", "results": []}
+
+    monkeypatch.setattr(tools, "_affordability_breach_rate", fake)
+    tools.query_affordability(shock=0.1, threshold=40.0, cohort="2016q1")
+    assert seen == {"shock": 0.1, "threshold": 40.0, "cohort": "2016-Q1"}
+
+
+def test_dispatch_routes_query_affordability():
+    result = tools.dispatch("query_affordability", {"shock": -1, "threshold": 40})
+    assert result["error"]["code"] == "shock_invalid"

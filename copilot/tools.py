@@ -1,4 +1,4 @@
-"""The three governed copilot tools (C3.1) — plain Python over the semantic layer.
+"""The governed copilot tools (C3.1) — plain Python over the semantic layer.
 
 No LLM here. These wrap `semantic.layer` for function-calling: the copilot (C3.2) hands
 Gemini `TOOL_DECLARATIONS`, the model answers with a tool name + arguments, and
@@ -18,6 +18,7 @@ from semantic import (
     ROLL_BUCKETS,
     SemanticError,
     Window,
+    affordability_breach_rate as _affordability_breach_rate,
     compare_cohorts as _compare_cohorts,
     list_metrics as _list_metrics,
     query_metric as _query_metric,
@@ -99,6 +100,21 @@ def query_roll_rate(
     Synthetic-path caveat applies (terminal states real, 30/60/90 walk generated).
     """
     return _as_data(_roll_rate, from_bucket, to_bucket, _normalize_cohort(cohort))
+
+
+def query_affordability(
+    shock: float,
+    threshold: float,
+    cohort: str | None = None,
+) -> dict:
+    """Share of a cohort breaching a DTI threshold under a hypothetical income shock.
+
+    Closed-form stress on origination-time dti (percent points): breach when
+    dti > threshold * (1 - shock). The shock is a scenario, not observed data.
+    """
+    return _as_data(
+        _affordability_breach_rate, shock, threshold, _normalize_cohort(cohort)
+    )
 
 
 # --- function-calling contract handed to the model (C3.2) --------------------------
@@ -193,6 +209,33 @@ TOOL_DECLARATIONS: list[dict] = [
             "required": ["from_bucket", "to_bucket"],
         },
     },
+    {
+        "name": "query_affordability",
+        "description": (
+            "Affordability stress: the share of each issue cohort whose debt-to-income "
+            "breaches a threshold if income drops by `shock`. dti is origination-time, "
+            "LendingClub percent points (threshold 40 = DTI 40). The shock is a "
+            "HYPOTHETICAL scenario — always caveat that in the answer."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "shock": {
+                    "type": "number",
+                    "description": "Fraction of income lost, in [0, 1); e.g. 0.10 = 10% drop.",
+                },
+                "threshold": {
+                    "type": "number",
+                    "description": "DTI breach threshold in percent points, in (0, 100].",
+                },
+                "cohort": {
+                    "type": "string",
+                    "description": "Optional issue cohort like '2018-Q1'; omit for all cohorts.",
+                },
+            },
+            "required": ["shock", "threshold"],
+        },
+    },
 ]
 
 
@@ -203,6 +246,7 @@ TOOLS: dict[str, Callable[..., Any]] = {
     "query_metric": query_metric,
     "compare_cohorts": compare_cohorts,
     "query_roll_rate": query_roll_rate,
+    "query_affordability": query_affordability,
 }
 
 
