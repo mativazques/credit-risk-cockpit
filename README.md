@@ -74,7 +74,7 @@ grade over the full 2.26M-loan book, with the governed metric definitions one cl
 ![Cohort-by-grade heatmap: default rate across issue quarter and credit grade](docs/img/cohort-heatmap.png)
 
 **Ask the copilot** — see the GIF at the top: a natural-language question answered only
-from the governed tools (`list_metrics`, `query_metric`, `compare_cohorts`). Every answer
+from the governed tools (`list_metrics`, `query_metric`, `compare_cohorts`, `query_roll_rate`, `query_affordability`, `project_scenario`). Every answer
 states the numbers, the driver, and which governed tool it called, so each figure is
 traceable back to a single metric definition — no free-form SQL, no invented numbers.
 

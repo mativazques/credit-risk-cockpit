@@ -1,8 +1,11 @@
 """Credit-Risk Cockpit — front-end (C1.6 BI + C3.4 copilot chat).
 
-Three views, all over the same governed layer:
-  * Vintage curves   — how each origination cohort's risk develops as it ages (MOB).
+Six views, all over the same governed layer:
+  * Vintage curves   — cohort risk development by month-on-book + early-warning backtest.
   * Cohort heatmap   — lifetime default / DTI / loss by (issue cohort x credit grade).
+  * Roll rates       — synthetic delinquency transition matrix per cohort.
+  * Affordability    — hypothetical income-shock DTI stress (governed breach rate).
+  * Business plan    — scenario projection of the mature loss curve.
   * Ask the copilot  — natural-language Q&A via the governed metrics (FastAPI /ask).
 
 BI reads only the small aggregated marts, never the raw ~2.3M-loan table.
