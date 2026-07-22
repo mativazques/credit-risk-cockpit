@@ -163,6 +163,7 @@ with roll_tab:
     pivot = (
         view.pivot(index="from_bucket", columns="to_bucket", values="roll_rate")
         .reindex(index=_BUCKET_ORDER, columns=_BUCKET_ORDER)
+        .fillna(0.0)
     )
     fig = px.imshow(
         pivot,
