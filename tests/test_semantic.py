@@ -5,7 +5,7 @@ from semantic import SemanticError, Window, list_metrics, query_metric
 from semantic.metrics import METRICS
 
 
-def test_catalog_has_the_five_governed_metrics():
+def test_catalog_has_the_seven_governed_metrics():
     ids = {m["id"] for m in list_metrics()}
     assert ids == {
         "cohort_size",
@@ -13,6 +13,8 @@ def test_catalog_has_the_five_governed_metrics():
         "default_rate",
         "cumulative_loss_rate",
         "charge_off_rate",
+        "predicted_default_rate",
+        "backtest_error",
     }
 
 
@@ -95,3 +97,20 @@ def test_roll_rate_rejects_unknown_bucket_before_touching_bq():
 def test_roll_rate_is_exported_from_semantic_package():
     import semantic
     assert hasattr(semantic, "roll_rate")
+
+
+# --- early-warning backtest (Phase B) ---------------------------------------------
+
+
+def test_backtest_metrics_read_the_backtest_mart():
+    for metric_id in ("predicted_default_rate", "backtest_error"):
+        m = METRICS[metric_id]
+        sql = m.build_sql(Window.MOB_0_36, lambda n: f"`p.d.{n}`")
+        assert "mart_vintage_backtest" in sql
+
+
+def test_backtest_metrics_are_mob_36_only():
+    for metric_id in ("predicted_default_rate", "backtest_error"):
+        with pytest.raises(SemanticError) as exc:
+            query_metric(metric_id, window="lifetime")
+        assert exc.value.code == "window_unsupported"

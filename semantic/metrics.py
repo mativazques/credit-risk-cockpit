@@ -22,6 +22,7 @@ from .windows import WINDOW_MOB, Window
 # Mart names; the caller supplies a resolver that fully-qualifies them.
 VINTAGE = "mart_vintage_curves"
 COHORT = "mart_cohort_default"
+BACKTEST = "mart_vintage_backtest"
 
 MartTable = Callable[[str], str]  # name -> `project.dataset.name`
 
@@ -126,6 +127,20 @@ def _charge_off_rate_sql(w: Window, mt: MartTable) -> str:
     """
 
 
+def _predicted_default_rate_sql(_w: Window, mt: MartTable) -> str:
+    return f"""
+        select issue_year_quarter, predicted_mature_cdr as value
+        from {mt(BACKTEST)}
+    """
+
+
+def _backtest_error_sql(_w: Window, mt: MartTable) -> str:
+    return f"""
+        select issue_year_quarter, backtest_error as value
+        from {mt(BACKTEST)}
+    """
+
+
 METRICS: dict[str, Metric] = {
     m.id: m
     for m in [
@@ -173,6 +188,31 @@ METRICS: dict[str, Metric] = {
                 Window.MOB_0_60,
             ),
             build_sql=_charge_off_rate_sql,
+        ),
+        Metric(
+            id="predicted_default_rate",
+            label="Predicted 36-MOB default (backtest)",
+            description=(
+                "Early-warning backtest: 36-MOB cumulative default predicted from the "
+                "12-MOB rate x a median seasoning multiplier learned on pre-2014 "
+                "cohorts (train) and applied out-of-sample to 2014+ (holdout). A "
+                "calibrated ratio on public data, not a production model."
+            ),
+            unit="rate",
+            valid_windows=(Window.MOB_0_36,),
+            build_sql=_predicted_default_rate_sql,
+        ),
+        Metric(
+            id="backtest_error",
+            label="Backtest error (predicted - actual)",
+            description=(
+                "Signed error of the early-warning backtest at 36 MOB: predicted "
+                "minus realized cumulative default. Positive = over-predicted. "
+                "Fully-observed cohorts only; train/holdout split at 2014-Q1."
+            ),
+            unit="rate",
+            valid_windows=(Window.MOB_0_36,),
+            build_sql=_backtest_error_sql,
         ),
     ]
 }
